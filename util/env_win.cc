@@ -104,6 +104,9 @@ class WinRandomAccessFile: public RandomAccessFile {
 
 namespace {
 
+#define DIR_SEP_CHAR L'\\'
+#define DIR_SEP_STR L"\\"
+
 WCHAR *ToWcharFromCodePage(const char *src, UINT cp)
 {
   int requiredBufSize = MultiByteToWideChar(cp, 0, src, -1, NULL, 0);
@@ -138,6 +141,64 @@ char *ToUtf8(const WCHAR *s)
         return NULL;
     WideCharToMultiByte(CP_UTF8, 0, s, -1, res, requiredBufSize, NULL, NULL);
     return res;
+}
+
+static size_t WstrLen(const WCHAR *s)
+{
+    if (NULL == s)
+        return 0;
+    return wcslen(s);
+}
+
+static WCHAR *WstrJoin(const WCHAR *s1, const WCHAR *s2, const WCHAR *s3=NULL)
+{
+    size_t s1Len = WstrLen(s1);
+    size_t s2Len = WstrLen(s2);
+    size_t s3Len = WstrLen(s3);
+    size_t len =s1Len + s2Len + s3Len + 1;
+    WCHAR *res = (WCHAR*)malloc(sizeof(WCHAR) * len);
+    if (!res)
+        return NULL;
+    WCHAR *tmp = res;
+    if (s1 != NULL) {
+        memcpy(tmp, s1, s1Len * sizeof(WCHAR));
+        tmp += s1Len;
+    }
+    if (s2 != NULL) {
+        memcpy(tmp, s2, s2Len * sizeof(WCHAR));
+        tmp += s2Len;
+    }
+    if (s3 != NULL) {
+        memcpy(tmp, s3, s3Len * sizeof(WCHAR));
+        tmp += s3Len;
+    }
+    *tmp = 0;
+    return res;
+}
+
+static bool WstrEndsWith(const WCHAR *s1, WCHAR c)
+{
+    size_t len = WstrLen(s1);
+    return ((len > 0) && (s1[len-1] == c));
+}
+
+static WCHAR *PathJoin(const WCHAR *s1, const WCHAR *s2)
+{
+    if (WstrEndsWith(s1, DIR_SEP_CHAR))
+        return WstrJoin(s1, s2);
+    return WstrJoin(s1, DIR_SEP_STR, s2);
+}
+
+// Return true if s is "." or "..", which are 2 directories
+// we should skip when enumerating a directory
+static bool SkipDir(const WCHAR *s)
+{
+    if (*s == L'.') {
+      if (s[1] == 0)
+        return true;
+      return ((s[1] == L'.') && (s[2] == 0));
+    }
+    return false;
 }
 
 class WinEnv : public Env {
@@ -214,12 +275,16 @@ class WinEnv : public Env {
   virtual Status GetChildren(const std::string& dir,
                std::vector<std::string>* result) {
     result->clear();
-    WCHAR *fileName = ToWcharPermissive(dir.c_str());
-    if (fileName == NULL)
+    WCHAR *dirName = ToWcharPermissive(dir.c_str());
+    if (dirName == NULL)
+      return Status::InvalidArgument("Invalid file name");
+    WCHAR *pattern = PathJoin(dirName, L"*");
+    free(dirName);
+    if (NULL == pattern)
       return Status::InvalidArgument("Invalid file name");
     WIN32_FIND_DATAW fileData;
-    HANDLE h = FindFirstFileW(fileName, &fileData);
-    free(fileName);
+    HANDLE h = FindFirstFileW(pattern, &fileData);
+    free(pattern);
     if (INVALID_HANDLE_VALUE == h) {
         if (ERROR_FILE_NOT_FOUND == GetLastError())
           return Status::OK();
@@ -227,28 +292,16 @@ class WinEnv : public Env {
     }
     for (;;) {
         WCHAR *s = fileData.cFileName;
-        char *s2 = ToUtf8(s);
-        result->push_back(s2);
+        if (!SkipDir(s)) {
+            char *s2 = ToUtf8(s);
+            result->push_back(s2);
+            free(s2);
+        }
         if (FALSE == FindNextFileW(h, &fileData))
             break;
     }
     FindClose(h);
     return Status::OK();
-
-    /*
-    boost::system::error_code ec;
-    boost::filesystem::directory_iterator current(dir, ec);
-    if (ec) {
-      return Status::IOError(dir, ec.message());
-    }
-
-    boost::filesystem::directory_iterator end;
-
-    for(; current != end; ++current) {
-      result->push_back(current->path().filename().generic_string());
-    }
-
-    return Status::OK(); */
   }
 
   virtual Status DeleteFile(const std::string& fname) {
@@ -282,7 +335,17 @@ class WinEnv : public Env {
   }
 
   virtual Status RenameFile(const std::string& src, const std::string& target) {
-    return IOError(src, 1);
+    WCHAR *srcW = ToWcharPermissive(src.c_str());
+    WCHAR *targetW = ToWcharPermissive(target.c_str());
+    if ((srcW == NULL) || (targetW == NULL)) {
+      free(srcW);
+      free(targetW);
+      return Status::InvalidArgument("Invalid file name");
+    }
+    BOOL ok = MoveFileExW(srcW, targetW, MOVEFILE_REPLACE_EXISTING);
+    if (!ok)
+        return IOError(src);
+    return Status::OK();
   }
 
   virtual Status LockFile(const std::string& fname, FileLock** lock) {
