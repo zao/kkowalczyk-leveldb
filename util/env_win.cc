@@ -423,8 +423,12 @@ class WinEnv : public Env {
   }
 
   virtual Status NewLogger(const std::string& fname, Logger** result) {
-    // TODO: implement me
-    return IOError(fname, 1);
+    *result = NULL;
+    FILE* f = fopen(fname.c_str(), "wt");
+    if (f == NULL)
+      return Status::IOError(fname, strerror(errno));
+    *result = new WinLogger(f);
+    return Status::OK();
   }
 
   virtual uint64_t NowMicros() {
