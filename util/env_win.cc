@@ -477,28 +477,38 @@ class WinEnv : public Env {
   }
 
 private:
-  size_t page_size_;
   bool started_bgthread_;
 };
 
-// TODO: query Windows for it
-size_t getpagesize()
-{
-    return 4096;
-}
-
-WinEnv::WinEnv() : page_size_(getpagesize()),
-                       started_bgthread_(false) {
+WinEnv::WinEnv() : started_bgthread_(false) {
 }
 
 void WinEnv::Schedule(void (*function)(void*), void* arg) {
   // TODO: implement me
 }
 
-void WinEnv::StartThread(void (*function)(void* arg), void* arg) {
-  // TODO: implement me
+namespace {
+struct StartThreadState {
+  void (*user_function)(void*);
+  void* arg;
+  HANDLE threadHandle;
+};
 }
 
+static DWORD WINAPI StartThreadWrapper(void* arg) {
+  StartThreadState* state = reinterpret_cast<StartThreadState*>(arg);
+  state->user_function(state->arg);
+  CloseHandle(state->threadHandle);
+  delete state;
+  return 0;
+}
+
+void WinEnv::StartThread(void (*function)(void* arg), void* arg) {
+  StartThreadState* state = new StartThreadState;
+  state->user_function = function;
+  state->arg = arg;
+  state->threadHandle = CreateThread(NULL, 0, &StartThreadWrapper, state, 0, NULL);
+}
 }
 
 static Env* default_env;
