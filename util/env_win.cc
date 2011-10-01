@@ -46,7 +46,7 @@ public:
 
   virtual Status Read(size_t n, Slice* result, char* scratch) {
     DWORD nToRead = n;
-    DWORD nDidRead;
+    DWORD nDidRead = 0;
     BOOL ok = ReadFile(file_, (void*)scratch, nToRead, &nDidRead, NULL);
     *result = Slice(scratch, nDidRead);
     if (!ok) {
@@ -80,16 +80,25 @@ class WinRandomAccessFile: public RandomAccessFile {
 
   virtual Status Read(uint64_t offset, size_t n, Slice* result,
                       char* scratch) const {
-    Status s;
-    s = IOError(filename_, 1);
-    /*
-    ssize_t r = pread(fd_, scratch, n, static_cast<off_t>(offset));
-    *result = Slice(scratch, (r < 0) ? 0 : r);
-    if (r < 0) {
-      // An error: return a non-ok status
-      s = IOError(filename_, errno);
-    }*/
-    return s;
+    LARGE_INTEGER pos;
+    pos.QuadPart = offset;
+    DWORD res = SetFilePointerEx(file_, pos, NULL, FILE_BEGIN);
+    if (res == 0) {
+        *result = Slice(scratch, 0);
+        return IOError(filename_);
+    }
+
+    DWORD nToRead = n;
+    DWORD nDidRead = 0;
+    BOOL ok = ReadFile(file_, (void*)scratch, nToRead, &nDidRead, NULL);
+    *result = Slice(scratch, nDidRead);
+    if (!ok) {
+        // We leave status as ok if we hit the end of the file
+        if (GetLastError() != ERROR_HANDLE_EOF) {
+            return IOError(filename_);
+        }
+    }
+    return Status::OK();
   }
 };
 
@@ -146,19 +155,17 @@ class WinEnv : public Env {
 
   virtual Status NewRandomAccessFile(const std::string& fname,
                    RandomAccessFile** result) {
-    /*
-#ifdef WIN32
-    int fd = _open(fname.c_str(), _O_RDONLY | _O_RANDOM | _O_BINARY);
-#else
-    int fd = open(fname.c_str(), O_RDONLY);
-#endif
-    if (fd < 0) {
-      *result = NULL;
-      return Status::IOError(fname, strerror(errno));
+    *result = NULL;
+    WCHAR *fileName = ToWcharPermissive(fname.c_str());
+    if (fileName == NULL) {
+      return Status::InvalidArgument("Invalid file name");
     }
-    *result = new PosixRandomAccessFile(fname, fd);
-    return Status::OK(); */
-    return IOError(fname, 1);
+    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+      return IOError(fname);
+    }
+    *result = new WinRandomAccessFile(fname, h);
+    return Status::OK();
   }
 
   virtual Status NewWritableFile(const std::string& fname,
