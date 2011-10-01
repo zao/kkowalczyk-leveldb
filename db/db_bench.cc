@@ -91,7 +91,11 @@ static int FLAGS_open_files = 0;
 static bool FLAGS_use_existing_db = false;
 
 // Use the db with the following name.
+#if defined(LEVELDB_PLATFORM_WINDOWS)
+static const char* FLAGS_db = "dbbench";
+#else
 static const char* FLAGS_db = "/tmp/dbbench";
+#endif
 
 namespace leveldb {
 
