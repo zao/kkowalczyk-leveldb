@@ -462,12 +462,18 @@ class WinEnv : public Env {
   }
 
   virtual uint64_t NowMicros() {
-    // TODO: implement me
-    return 0;
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER uli;
+    uli.LowPart = ft.dwLowDateTime; // could use memcpy here!
+    uli.HighPart = ft.dwHighDateTime;
+    uint64_t micros = uli.QuadPart / 10;
+    return micros;
   }
 
   virtual void SleepForMicroseconds(int micros) {
-    // TODO: implement me
+    // TODO: is there a higher precision call?
+    ::Sleep(micros / 1000);
   }
 
 private:
