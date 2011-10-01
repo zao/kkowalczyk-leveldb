@@ -13,11 +13,25 @@
 #include "util/logging.h"
 #include "util/win_logger.h"
 
+// Implementation note: to properly support file names on Windows we should
+// be using Unicode (WCHAR) strings. To accomodate existing interface which
+// uses std::string, we use the following convention:
+// * all filenames that we return (e.g. from GetTestDirectory()) are
+//   utf8-encoded
+// * we'll try to interpret all input file names as if they're
+//   utf8-encoded. If they're not valid utf8 strings, we'll try
+//   to interpret them according to a current code page
+// This just works for names that don't use characters outside ascii
+// and for those that do, the caller needs to be aware of this convention
+// whenever it percolates up to the user-level API.
+
 namespace leveldb {
 
-// TODO: use native windows error codes and error messages
-static Status IOError(const std::string& context, int err_number) {
-  return Status::IOError(context, strerror(err_number));
+static Status IOError(const std::string& context, DWORD winerr = (DWORD)-1) {
+  if ((DWORD)-1 == winerr)
+    winerr = GetLastError();
+  // TODO: convert winerr to a string
+  return Status::IOError(context);
 }
 
 class WinSequentialFile: public SequentialFile {
@@ -26,35 +40,31 @@ private:
   HANDLE file_;
 
 public:
-    // TODO: remember file name
   WinSequentialFile(const std::string& fname, HANDLE f)
       : filename_(fname), file_(f) { }
   virtual ~WinSequentialFile() { CloseHandle(file_); }
 
   virtual Status Read(size_t n, Slice* result, char* scratch) {
-    Status s;
-    s = IOError(filename_, 1);
-    /*
-    size_t r = fread_unlocked(scratch, 1, n, file_);
-    *result = Slice(scratch, r);
-    if (r < n) {
-      if (feof(file_)) {
+    DWORD nToRead = n;
+    DWORD nDidRead;
+    BOOL ok = ReadFile(file_, (void*)scratch, nToRead, &nDidRead, NULL);
+    *result = Slice(scratch, nDidRead);
+    if (!ok) {
         // We leave status as ok if we hit the end of the file
-      } else {
-        // A partial read with an error: return a non-ok status
-        s = IOError(filename_, errno);
-      }
-    }*/
-    return s;
+        if (GetLastError() != ERROR_HANDLE_EOF) {
+            return IOError(filename_);
+        }
+    }
+    return Status::OK();
   }
 
   virtual Status Skip(uint64_t n) {
-    /*
-    if (fseek(file_, n, SEEK_CUR)) {
-      return IOError(filename_, errno);
-    }
-    return Status::OK(); */
-    return IOError(filename_, 1);
+    LARGE_INTEGER pos;
+    pos.QuadPart = n;
+    DWORD res = SetFilePointerEx(file_, pos, NULL, FILE_CURRENT);
+    if (res == 0)
+        return IOError(filename_);
+    return Status::OK();
   }
 };
 
@@ -85,27 +95,53 @@ class WinRandomAccessFile: public RandomAccessFile {
 
 namespace {
 
+WCHAR *ToWcharFromCodePage(const char *src, UINT cp)
+{
+  int requiredBufSize = MultiByteToWideChar(cp, 0, src, -1, NULL, 0);
+  if (0 == requiredBufSize) // indicates an error
+    return NULL;
+  WCHAR *res = reinterpret_cast<WCHAR*>(malloc(sizeof(WCHAR) * requiredBufSize));
+  if (!res)
+    return NULL;
+  MultiByteToWideChar(cp, 0, src, -1, res, requiredBufSize);
+  return res;
+}
+
+// try to convert to WCHAR string trying most common code pages
+// to be as permissive as we can be
+WCHAR *ToWcharPermissive(const char *s)
+{
+  WCHAR *ws = ToWcharFromCodePage(s, CP_UTF8);
+  if (ws != NULL)
+    return ws;
+  ws = ToWcharFromCodePage(s, CP_ACP);
+  if (ws != NULL)
+    return ws;
+  ws = ToWcharFromCodePage(s, CP_OEMCP);
+  return ws;
+}
+
 class WinEnv : public Env {
  public:
   WinEnv();
   virtual ~WinEnv() {
     fprintf(stderr, "Destroying Env::Default()\n");
-    exit(1);
+    //exit(1);
   }
 
   virtual Status NewSequentialFile(const std::string& fname,
                                    SequentialFile** result) {
-    /*
-    FILE* f = fopen(fname.c_str(), "r");
-    if (f == NULL) {
-      *result = NULL;
-      return IOError(fname, errno);
-    } else {
-      *result = new WinSequentialFile(fname, f);
-      return Status::OK();
+    *result = NULL;
+    WCHAR *fileName = ToWcharPermissive(fname.c_str());
+    if (fileName == NULL) {
+      return Status::InvalidArgument("Invalid file name");
     }
-    */
-    return IOError(fname, 1);
+    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+      return IOError(fname);
+    }
+    *result = new WinSequentialFile(fname, h);
+    return Status::OK();
   }
 
   virtual Status NewRandomAccessFile(const std::string& fname,
