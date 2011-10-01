@@ -351,8 +351,14 @@ class WinEnv : public Env {
   }
 
   virtual Status DeleteDir(const std::string& name) {
-    // TODO: implement me
-    return IOError(name, 1);
+    WCHAR *dir = ToWcharPermissive(name.c_str());
+    if (dir == NULL)
+      return Status::InvalidArgument("Invalid file name");
+    BOOL ok = RemoveDirectoryW(dir);
+    free(dir);
+    if (!ok)
+        return IOError(name);
+    return Status::OK();
   }
 
   virtual Status GetFileSize(const std::string& fname, uint64_t* size) {
@@ -369,6 +375,8 @@ class WinEnv : public Env {
       return Status::InvalidArgument("Invalid file name");
     }
     BOOL ok = MoveFileExW(srcW, targetW, MOVEFILE_REPLACE_EXISTING);
+    free(srcW);
+    free(targetW);
     if (!ok)
         return IOError(src);
     return Status::OK();
