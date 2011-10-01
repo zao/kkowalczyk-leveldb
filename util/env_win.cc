@@ -130,6 +130,16 @@ WCHAR *ToWcharPermissive(const char *s)
   return ws;
 }
 
+char *ToUtf8(const WCHAR *s)
+{
+    int requiredBufSize = WideCharToMultiByte(CP_UTF8, 0, s, -1, NULL, 0, NULL, NULL);
+    char *res = (char*)malloc(sizeof(char) * requiredBufSize);
+    if (!res)
+        return NULL;
+    WideCharToMultiByte(CP_UTF8, 0, s, -1, res, requiredBufSize, NULL, NULL);
+    return res;
+}
+
 class WinEnv : public Env {
  public:
   WinEnv();
@@ -204,6 +214,27 @@ class WinEnv : public Env {
   virtual Status GetChildren(const std::string& dir,
                std::vector<std::string>* result) {
     result->clear();
+    WCHAR *fileName = ToWcharPermissive(dir.c_str());
+    if (fileName == NULL)
+      return Status::InvalidArgument("Invalid file name");
+    WIN32_FIND_DATAW fileData;
+    HANDLE h = FindFirstFileW(fileName, &fileData);
+    free(fileName);
+    if (INVALID_HANDLE_VALUE == h) {
+        if (ERROR_FILE_NOT_FOUND == GetLastError())
+          return Status::OK();
+        return IOError(dir);
+    }
+    for (;;) {
+        WCHAR *s = fileData.cFileName;
+        char *s2 = ToUtf8(s);
+        result->push_back(s2);
+        if (FALSE == FindNextFileW(h, &fileData))
+            break;
+    }
+    FindClose(h);
+    return Status::OK();
+
     /*
     boost::system::error_code ec;
     boost::filesystem::directory_iterator current(dir, ec);
@@ -218,7 +249,6 @@ class WinEnv : public Env {
     }
 
     return Status::OK(); */
-    return IOError("", 1);
   }
 
   virtual Status DeleteFile(const std::string& fname) {
@@ -227,8 +257,18 @@ class WinEnv : public Env {
   }
 
   virtual Status CreateDir(const std::string& name) {
-    // TODO: implement me
-    return IOError(name, 1);
+    // TODO: implement recursive creation?
+    WCHAR *dir = ToWcharPermissive(name.c_str());
+    if (dir == NULL)
+      return Status::InvalidArgument("Invalid file name");
+    BOOL ok = CreateDirectoryW(dir, NULL);
+    free(dir);
+    if (!ok) {
+        if (ERROR_ALREADY_EXISTS == GetLastError())
+          return Status::OK();
+        return IOError(name);
+    }
+    return Status::OK();
   }
 
   virtual Status DeleteDir(const std::string& name) {
@@ -307,7 +347,9 @@ static Env* default_env;
 static void InitDefaultEnv() { default_env = new WinEnv(); }
 
 Env* Env::Default() {
-  InitDefaultEnv(); // TODO: ensure only once
+ // TODO: ensure only once
+  if (NULL == default_env)
+    InitDefaultEnv();
   return default_env;
 }
 
