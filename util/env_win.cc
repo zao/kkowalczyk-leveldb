@@ -467,8 +467,18 @@ class WinEnv : public Env {
   virtual void StartThread(void (*function)(void* arg), void* arg);
 
   virtual Status GetTestDirectory(std::string* result) {
-    // TODO: implement me
-    return IOError("", 1);
+    WCHAR buf[MAX_PATH];
+    DWORD res = GetTempPathW(MAX_PATH, buf);
+    if (0 == res) {
+      return IOError("Can't get test directory");
+    }
+    char *s = ToUtf8(buf);
+    if (!s) {
+      return IOError("Can't get test directory");
+    }
+    *result = std::string(s);
+    free(s);
+    return Status::OK();
   }
 
   virtual Status NewLogger(const std::string& fname, Logger** result) {
@@ -505,7 +515,7 @@ private:
   }
 
   leveldb::port::Mutex mu_;
-  leveldb::port::CondVar *bgsignal_;
+  leveldb::port::CondVar bgsignal_;
   HANDLE bgthread_;
 
   // Entry per Schedule() call
@@ -515,8 +525,7 @@ private:
 };
 
 
-WinEnv::WinEnv() : bgthread_(NULL) {
-  bgsignal_ = new leveldb::port::CondVar(&mu_);
+WinEnv::WinEnv() : bgthread_(NULL), bgsignal_(&mu_) {
 }
 
 void WinEnv::Schedule(void (*function)(void*), void* arg) {
@@ -534,7 +543,7 @@ void WinEnv::Schedule(void (*function)(void*), void* arg) {
 
   mu_.Unlock();
 
-  bgsignal_->Signal();
+  bgsignal_.Signal();
 }
 
 void WinEnv::BGThread() {
@@ -543,7 +552,7 @@ void WinEnv::BGThread() {
     mu_.Lock();
 
     while (queue_.empty()) {
-      bgsignal_->Wait();
+      bgsignal_.Wait();
     }
 
     void (*function)(void*) = queue_.front().function;
@@ -581,11 +590,13 @@ void WinEnv::StartThread(void (*function)(void* arg), void* arg) {
 
 static Env* default_env;
 static void InitDefaultEnv() { default_env = new WinEnv(); }
+static leveldb::port::Mutex default_env_mutex;
 
 Env* Env::Default() {
- // TODO: ensure only once
+  default_env_mutex.Lock();
   if (NULL == default_env)
     InitDefaultEnv();
+  default_env_mutex.Unlock();
   return default_env;
 }
 

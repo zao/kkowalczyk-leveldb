@@ -1,7 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Leveldb", "Leveldb.vcxproj", "{A75FA9CD-7F2E-D1E5-E8C4-6E65076E9761}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "db_bench", "db_bench.vcxproj", "{925B9311-B6F4-D820-A2A4-DC9A796E4433}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "db_test", "db_test.vcxproj", "{25A3BEFF-B1FB-F809-9C82-EE3BCD50C725}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +11,14 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{A75FA9CD-7F2E-D1E5-E8C4-6E65076E9761}.Debug|Win32.ActiveCfg = Debug|Win32
-		{A75FA9CD-7F2E-D1E5-E8C4-6E65076E9761}.Debug|Win32.Build.0 = Debug|Win32
-		{A75FA9CD-7F2E-D1E5-E8C4-6E65076E9761}.Release|Win32.ActiveCfg = Release|Win32
-		{A75FA9CD-7F2E-D1E5-E8C4-6E65076E9761}.Release|Win32.Build.0 = Release|Win32
+		{925B9311-B6F4-D820-A2A4-DC9A796E4433}.Debug|Win32.ActiveCfg = Debug|Win32
+		{925B9311-B6F4-D820-A2A4-DC9A796E4433}.Debug|Win32.Build.0 = Debug|Win32
+		{925B9311-B6F4-D820-A2A4-DC9A796E4433}.Release|Win32.ActiveCfg = Release|Win32
+		{925B9311-B6F4-D820-A2A4-DC9A796E4433}.Release|Win32.Build.0 = Release|Win32
+		{25A3BEFF-B1FB-F809-9C82-EE3BCD50C725}.Debug|Win32.ActiveCfg = Debug|Win32
+		{25A3BEFF-B1FB-F809-9C82-EE3BCD50C725}.Debug|Win32.Build.0 = Debug|Win32
+		{25A3BEFF-B1FB-F809-9C82-EE3BCD50C725}.Release|Win32.ActiveCfg = Release|Win32
+		{25A3BEFF-B1FB-F809-9C82-EE3BCD50C725}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
