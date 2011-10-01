@@ -196,10 +196,25 @@ static bool SkipDir(const WCHAR *s)
     if (*s == L'.') {
       if (s[1] == 0)
         return true;
-      return ((s[1] == L'.') && (s[2] == 0));
+      return ((s[1] == '.') && (s[2] == 0));
     }
     return false;
 }
+
+static BOOL WinLockFile(HANDLE file)
+{
+  return LockFile(file, 0, 0, 0, 1);
+}
+
+static BOOL WinUnlockFile(HANDLE file)
+{
+  return UnlockFile(file, 0, 0, 0, 1);
+}
+
+class WinFileLock : public FileLock {
+ public:
+  HANDLE file_;
+};
 
 class WinEnv : public Env {
  public:
@@ -305,8 +320,19 @@ class WinEnv : public Env {
   }
 
   virtual Status DeleteFile(const std::string& fname) {
-    // TODO: implement me
-    return IOError(fname, 1);
+    WCHAR *filePath = ToWcharPermissive(fname.c_str());
+    if (filePath == NULL)
+        return Status::InvalidArgument("Invalid file name");
+
+    BOOL ok = DeleteFileW(filePath);
+    free(filePath);
+    if (!ok) {
+        DWORD err = GetLastError();
+        if ((ERROR_PATH_NOT_FOUND == err) || (ERROR_FILE_NOT_FOUND == err))
+          return Status::OK();
+      return IOError(fname);
+    }
+    return Status::OK();
   }
 
   virtual Status CreateDir(const std::string& name) {
@@ -349,13 +375,34 @@ class WinEnv : public Env {
   }
 
   virtual Status LockFile(const std::string& fname, FileLock** lock) {
-    // TODO: implement me
-    return IOError(fname, 1);
+    *lock = NULL;
+    WCHAR *fileName = ToWcharPermissive(fname.c_str());
+    if (fileName == NULL) {
+      return Status::InvalidArgument("Invalid file name");
+    }
+    HANDLE h = CreateFileW(fileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)fileName);
+    if (h == INVALID_HANDLE_VALUE) {
+      return IOError(fname);
+    }
+    if (!WinLockFile(h)) {
+        CloseHandle(h);
+        return IOError("lock " + fname);
+    }
+    WinFileLock* my_lock = new WinFileLock;
+    my_lock->file_ = h;
+    *lock = my_lock;
+    return Status::OK();
   }
 
   virtual Status UnlockFile(FileLock* lock) {
-    // TODO: implement me
-    return IOError("", 1);
+    WinFileLock* my_lock = reinterpret_cast<WinFileLock*>(lock);
+    BOOL ok = WinUnlockFile(my_lock->file_);
+    CloseHandle(my_lock->file_);
+    delete my_lock;
+    if (!ok)
+        return IOError("unlock");
+    return Status::OK();
   }
 
   virtual void Schedule(void (*function)(void*), void* arg);
