@@ -146,6 +146,7 @@ class WinEnv : public Env {
       return Status::InvalidArgument("Invalid file name");
     }
     HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)fileName);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
     }
@@ -161,6 +162,7 @@ class WinEnv : public Env {
       return Status::InvalidArgument("Invalid file name");
     }
     HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)fileName);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
     }
@@ -184,7 +186,19 @@ class WinEnv : public Env {
   }
 
   virtual bool FileExists(const std::string& fname) {
-    return false;
+    WCHAR *fileName = ToWcharPermissive(fname.c_str());
+    if (fileName == NULL)
+        return false;
+
+    WIN32_FILE_ATTRIBUTE_DATA   fileInfo;
+    BOOL res = GetFileAttributesExW(fileName, GetFileExInfoStandard, &fileInfo);
+    free((void*)fileName);
+    if (0 == res)
+        return false;
+
+    if ((fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+        return false;
+    return true;
   }
 
   virtual Status GetChildren(const std::string& dir,
