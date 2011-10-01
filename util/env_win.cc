@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <string.h>
+#include <deque>
 
 // Undo Windows headers which #defines DeleteFile as DeleteFileA or DeleteFileW
 #ifdef DeleteFile
@@ -10,6 +11,7 @@
 #include "leveldb/env.h"
 #include "leveldb/slice.h"
 #include "port/port.h"
+#include "port/port_win.h"
 #include "util/logging.h"
 #include "util/win_logger.h"
 
@@ -477,14 +479,63 @@ class WinEnv : public Env {
   }
 
 private:
-  bool started_bgthread_;
+  // BGThread() is the body of the background thread
+  void BGThread();
+
+  static DWORD WINAPI BGThreadWrapper(void* arg) {
+    (reinterpret_cast<WinEnv*>(arg))->BGThread();
+    return NULL;
+  }
+
+  leveldb::port::Mutex mu_;
+  leveldb::port::CondVar *bgsignal_;
+  HANDLE bgthread_;
+
+  // Entry per Schedule() call
+  struct BGItem { void* arg; void (*function)(void*); };
+  typedef std::deque<BGItem> BGQueue;
+  BGQueue queue_;
 };
 
-WinEnv::WinEnv() : started_bgthread_(false) {
+
+WinEnv::WinEnv() : bgthread_(NULL) {
+  bgsignal_ = new leveldb::port::CondVar(&mu_);
 }
 
 void WinEnv::Schedule(void (*function)(void*), void* arg) {
-  // TODO: implement me
+  mu_.Lock();
+
+  // Start background thread if necessary
+  if (NULL == bgthread_) {
+    bgthread_ = CreateThread(NULL, 0, &WinEnv::BGThreadWrapper, this, 0, NULL);
+  }
+
+  // Add to priority queue
+  queue_.push_back(BGItem());
+  queue_.back().function = function;
+  queue_.back().arg = arg;
+
+  mu_.Unlock();
+
+  bgsignal_->Signal();
+}
+
+void WinEnv::BGThread() {
+  while (true) {
+    // Wait until there is an item that is ready to run
+    mu_.Lock();
+
+    while (queue_.empty()) {
+      bgsignal_->Wait();
+    }
+
+    void (*function)(void*) = queue_.front().function;
+    void* arg = queue_.front().arg;
+    queue_.pop_front();
+
+    mu_.Unlock();
+    (*function)(arg);
+  }
 }
 
 namespace {
