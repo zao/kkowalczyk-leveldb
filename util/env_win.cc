@@ -394,8 +394,25 @@ class WinEnv : public Env {
   }
 
   virtual Status GetFileSize(const std::string& fname, uint64_t* size) {
-    // TODO: implement me
-    return IOError(fname, 1);
+
+    WCHAR *fileName = ToWcharPermissive(fname.c_str());
+    if (fileName == NULL)
+      return Status::InvalidArgument("Invalid file name");
+    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL,  
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,  NULL); 
+    free(fileName);
+    if (h == INVALID_HANDLE_VALUE)
+      return  IOError(fname);
+
+    // Not using GetFileAttributesEx() as it doesn't interact well with symlinks, etc.
+    LARGE_INTEGER lsize;
+    BOOL ok = GetFileSizeEx(h, &lsize);
+    CloseHandle(h);
+    if (!ok)
+      return  IOError(fname);
+
+    *size = static_cast<uint64_t>(lsize.QuadPart);
+    return Status::OK();
   }
 
   virtual Status RenameFile(const std::string& src, const std::string& target) {
