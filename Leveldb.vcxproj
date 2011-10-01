@@ -47,6 +47,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
+      <DisableSpecificWarnings>4996;4800;4018;4355;4244</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -60,6 +61,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4996;4800;4018;4355;4244</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -107,6 +109,7 @@
     <ClCompile Include="util\logging.cc" />
     <ClCompile Include="util\options.cc" />
     <ClCompile Include="util\status.cc" />
+    <ClCompile Include="util\testutil.cc" />
     <ClCompile Include="util\win_logger.cc" />
   </ItemGroup>
   <ItemGroup>
