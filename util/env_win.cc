@@ -102,13 +102,52 @@ class WinRandomAccessFile: public RandomAccessFile {
   }
 };
 
+class WinWritableFile : public WritableFile {
+private:
+  std::string name_;
+  HANDLE file_;
+
+public:
+  WinWritableFile(std::string name, HANDLE h) : name_(name), file_(h) {
+  }
+  ~WinWritableFile() {
+    Close();
+  }
+
+  virtual Status Append(const Slice& data) {
+    DWORD nToWrite = data.size();
+    DWORD nWritten = 0;
+    BOOL ok = WriteFile(file_, data.data(), nToWrite, &nWritten, NULL);
+    if (!ok)
+        return IOError(name_ + "Append: cannot write");
+    return Status::OK();
+  }
+
+  virtual Status Close() {
+    if (INVALID_HANDLE_VALUE != file_) {
+      Flush();
+      CloseHandle(file_);
+      file_ = INVALID_HANDLE_VALUE;
+    }
+    return Status::OK();
+  }
+
+  virtual Status Flush() {
+    FlushFileBuffers(file_);
+    return Status::OK();
+  }
+
+  virtual Status Sync() {
+    return Flush();
+  }
+};
+
 namespace {
 
 #define DIR_SEP_CHAR L'\\'
 #define DIR_SEP_STR L"\\"
 
-WCHAR *ToWcharFromCodePage(const char *src, UINT cp)
-{
+WCHAR *ToWcharFromCodePage(const char *src, UINT cp) {
   int requiredBufSize = MultiByteToWideChar(cp, 0, src, -1, NULL, 0);
   if (0 == requiredBufSize) // indicates an error
     return NULL;
@@ -121,8 +160,7 @@ WCHAR *ToWcharFromCodePage(const char *src, UINT cp)
 
 // try to convert to WCHAR string trying most common code pages
 // to be as permissive as we can be
-WCHAR *ToWcharPermissive(const char *s)
-{
+WCHAR *ToWcharPermissive(const char *s) {
   WCHAR *ws = ToWcharFromCodePage(s, CP_UTF8);
   if (ws != NULL)
     return ws;
@@ -133,8 +171,7 @@ WCHAR *ToWcharPermissive(const char *s)
   return ws;
 }
 
-char *ToUtf8(const WCHAR *s)
-{
+char *ToUtf8(const WCHAR *s) {
     int requiredBufSize = WideCharToMultiByte(CP_UTF8, 0, s, -1, NULL, 0, NULL, NULL);
     char *res = (char*)malloc(sizeof(char) * requiredBufSize);
     if (!res)
@@ -143,15 +180,13 @@ char *ToUtf8(const WCHAR *s)
     return res;
 }
 
-static size_t WstrLen(const WCHAR *s)
-{
+static size_t WstrLen(const WCHAR *s) {
     if (NULL == s)
         return 0;
     return wcslen(s);
 }
 
-static WCHAR *WstrJoin(const WCHAR *s1, const WCHAR *s2, const WCHAR *s3=NULL)
-{
+static WCHAR *WstrJoin(const WCHAR *s1, const WCHAR *s2, const WCHAR *s3=NULL) {
     size_t s1Len = WstrLen(s1);
     size_t s2Len = WstrLen(s2);
     size_t s3Len = WstrLen(s3);
@@ -176,14 +211,12 @@ static WCHAR *WstrJoin(const WCHAR *s1, const WCHAR *s2, const WCHAR *s3=NULL)
     return res;
 }
 
-static bool WstrEndsWith(const WCHAR *s1, WCHAR c)
-{
+static bool WstrEndsWith(const WCHAR *s1, WCHAR c) {
     size_t len = WstrLen(s1);
     return ((len > 0) && (s1[len-1] == c));
 }
 
-static WCHAR *PathJoin(const WCHAR *s1, const WCHAR *s2)
-{
+static WCHAR *PathJoin(const WCHAR *s1, const WCHAR *s2) {
     if (WstrEndsWith(s1, DIR_SEP_CHAR))
         return WstrJoin(s1, s2);
     return WstrJoin(s1, DIR_SEP_STR, s2);
@@ -191,8 +224,7 @@ static WCHAR *PathJoin(const WCHAR *s1, const WCHAR *s2)
 
 // Return true if s is "." or "..", which are 2 directories
 // we should skip when enumerating a directory
-static bool SkipDir(const WCHAR *s)
-{
+static bool SkipDir(const WCHAR *s) {
     if (*s == L'.') {
       if (s[1] == 0)
         return true;
@@ -201,13 +233,11 @@ static bool SkipDir(const WCHAR *s)
     return false;
 }
 
-static BOOL WinLockFile(HANDLE file)
-{
+static BOOL WinLockFile(HANDLE file) {
   return LockFile(file, 0, 0, 0, 1);
 }
 
-static BOOL WinUnlockFile(HANDLE file)
-{
+static BOOL WinUnlockFile(HANDLE file) {
   return UnlockFile(file, 0, 0, 0, 1);
 }
 
@@ -258,17 +288,17 @@ class WinEnv : public Env {
 
   virtual Status NewWritableFile(const std::string& fname,
                  WritableFile** result) {
-    /*Status s;
-    try {
-      // will create a new empty file to write to
-      *result = new BoostFile(fname);
+    *result = NULL;
+    WCHAR *fileName = ToWcharPermissive(fname.c_str());
+    if (fileName == NULL)
+      return Status::InvalidArgument("Invalid file name");
+    HANDLE h = CreateFileW(fileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)fileName);
+    if (h == INVALID_HANDLE_VALUE) {
+      return IOError(fname);
     }
-    catch (const std::exception & e) {
-      s = Status::IOError(fname, e.what());
-    }
-
-    return s; */
-    return IOError(fname, 1);
+    *result = new WinWritableFile(fname, h);
+    return Status::OK();
   }
 
   virtual bool FileExists(const std::string& fname) {
