@@ -3,7 +3,9 @@
 #include <string.h>
 #include <deque>
 
-// Undo Windows headers which #defines DeleteFile as DeleteFileA or DeleteFileW
+// Undo Windows headers which #defines DeleteFile as DeleteFileA or DeleteFileW,
+// which conflicts with Env::DeleteFile() method.
+// Needs to be done before including leveldb/env.h
 #ifdef DeleteFile
 #undef DeleteFile
 #endif
@@ -15,9 +17,9 @@
 #include "util/logging.h"
 #include "util/win_logger.h"
 
-// Implementation note: to properly support file names on Windows we should
-// be using Unicode (WCHAR) strings. To accomodate existing interface which
-// uses std::string, we use the following convention:
+// To properly support file names on Windows we should be using Unicode
+// (WCHAR) strings. To accomodate existing interface which uses std::string,
+// we use the following convention:
 // * all filenames that we return (e.g. from GetTestDirectory()) are
 //   utf8-encoded
 // * we'll try to interpret all input file names as if they're

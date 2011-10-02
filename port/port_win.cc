@@ -117,15 +117,6 @@ void CondVar::SignalAll() {
     ::ReleaseSemaphore(sem1_, 1, NULL);
     ::WaitForSingleObject(sem2_, INFINITE);
   }
-
-  /*for(long i = 0; i < waiting_; ++i) {
-    ::ReleaseSemaphore(sem1_, 1, NULL);
-    while(waiting_ > 0) {
-      --waiting_;
-      ::WaitForSingleObject(sem2_, INFINITE);
-      ::ReleaseSemaphore(sem1_, 1, NULL);
-    }
-  }*/
   wait_mtx_.Unlock();
 }
 
