@@ -31,11 +31,19 @@
 
 namespace leveldb {
 
-static Status IOError(const std::string& context, DWORD winerr = (DWORD)-1) {
-  if ((DWORD)-1 == winerr)
-    winerr = GetLastError();
-  // TODO: convert winerr to a string
-  return Status::IOError(context);
+static Status IOError(const std::string& context, DWORD err = (DWORD)-1) {
+  char *err_msg = NULL;
+  Status s;
+  if ((DWORD)-1 == err)
+    err = GetLastError();
+  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+      NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      (LPSTR)&err_msg, 0, NULL);
+    if (!err_msg) 
+        return Status::IOError(context);
+    s = Status::IOError(context, err_msg);
+    LocalFree(err_msg);
+    return s;
 }
 
 class WinSequentialFile: public SequentialFile {
@@ -265,7 +273,7 @@ class WinEnv : public Env {
     if (fileName == NULL) {
       return Status::InvalidArgument("Invalid file name");
     }
-    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     free((void*)fileName);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
@@ -281,7 +289,7 @@ class WinEnv : public Env {
     if (fileName == NULL) {
       return Status::InvalidArgument("Invalid file name");
     }
-    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     free((void*)fileName);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
