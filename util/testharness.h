@@ -32,6 +32,9 @@ extern int RunAllTests();
 // Return the directory to use for temporary storage.
 extern std::string TmpDir();
 
+// Return a path combining base directory and a file or directory name
+extern std::string PathJoin(const std::string dir, const std::string rest);
+
 // Return a randomization seed for this run.  Typically returns the
 // same number on repeated invocations of this binary, but automated
 // runs may be able to vary the seed.

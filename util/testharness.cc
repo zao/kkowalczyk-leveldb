@@ -64,6 +64,25 @@ std::string TmpDir() {
   return dir;
 }
 
+bool StringEndsWith(const std::string s, const std::string end)
+{
+    size_t pos = s.find_last_of(end);
+    size_t expected_pos = s.size() - 1;
+    return pos == expected_pos;
+}
+
+std::string PathJoin(const std::string dir, const std::string rest)
+{
+#if defined(LEVELDB_PLATFORM_WINDOWS)
+  const std::string path_sep_str = "\\";
+#else
+  const std::string path_sep_str = "/";
+#endif
+  if (StringEndsWith(dir, path_sep_str))
+      return dir + rest;
+  return dir + path_sep_str + rest;
+}
+
 int RandomSeed() {
   const char* env = getenv("TEST_RANDOM_SEED");
   int result = (env != NULL ? atoi(env) : 301);
