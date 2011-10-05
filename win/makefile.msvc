@@ -111,7 +111,7 @@ CORRUPTION_TEST_APP = $(O)\corruption_test.exe
 
 DBFORMAT_TEST_OBJS = $(LEVELDB_OBJS) \
 	$(OT)\dbformat_test.obj $(OT)\testharness.obj $(OT)\testutil.obj
-DBFORMAT_TEST_APP = $(O)\dbformate_test.exe
+DBFORMAT_TEST_APP = $(O)\dbformat_test.exe
 
 DBBENCH_OBJS = $(LEVELDB_OBJS) \
 	$(OT)\db_bench.obj $(OT)\testutil.obj
@@ -182,7 +182,7 @@ all: $(O) $(LEVELDBDLL_DLL) $(CORRUPTION_TEST_APP) $(DBFORMAT_TEST_APP)\
 
 dll: $(O) $(LEVELDBDLL_DLL)
 corruptiontest: $(O) $(CORRUPTION_TEST_APP) 
-dbformat_test: $(O) $(DBFORMAT_TEST_APP)
+dbformattest: $(O) $(DBFORMAT_TEST_APP)
 dbbench: $(O) $(DBBENCH_APP)
 dbtest: $(O) $(DBTEST_APP)
 filenametest: $(O) $(FILENAME_TEST_APP)
