@@ -2,6 +2,13 @@
 # Arguments:
 # CFG=dbg|rel (default: dbg)
 # PLATFORM=X32|X64 usually set in the x32 and x64 cross tools Visual Studio command prompt
+# SRC= : default: empty, where the source code lives
+
+
+# top-level source code dir
+!if "$(SRC)"==""
+SRC=.
+!endif
 
 !if "$(CFG)"==""
 CFG=dbg
@@ -15,9 +22,6 @@ O = $(O)64bit
 
 # temporary directory, this is where object files go
 OT = $(O)\tmp
-
-# top-level source code dir
-SRC=.
 
 CC = cl.exe
 
@@ -97,7 +101,7 @@ LEVELDB_OBJS = \
 	$(OT)\write_batch.obj
 
 LEVELDBDLL_LIB = $(O)\libleveldb.lib
-LEVELDBDLL_DEF = win\libleveldb.def
+LEVELDBDLL_DEF = $(SRC)\win\libleveldb.def
 LEVELDBDLL_OBJS = $(LEVELDB_OBJS)
 LEVELDBDLL_DLL = $(O)\libleveldb.dll
 
@@ -171,10 +175,28 @@ ENV_TEST_APP = $(O)\env_test.exe
 
 all: $(O) $(LEVELDBDLL_DLL) $(CORRUPTION_TEST_APP) $(DBFORMAT_TEST_APP)\
 	$(DBBENCH_APP) $(DBTEST_APP) $(FILENAME_TEST_APP) $(LOG_TEST_APP)\
-	$(LOG_TEST_APP) $(SKIPLIST_TEST_APP) $(VERSIONEDIT_TEST_APP) \
+	$(SKIPLIST_TEST_APP) $(VERSIONEDIT_TEST_APP) \
 	$(VERSIONSET_TEST_APP) $(WRITEBATCH_TEST_APP)\
 	$(TABLE_TEST_APP) $(ARENA_TEST_APP) $(CACHE_TEST_APP) \
 	$(CODING_TEST_APP) $(CRC32C_TEST_APP) $(ENV_TEST_APP)
+
+dll: $(O) $(LEVELDBDLL_DLL)
+corruptiontest: $(O) $(CORRUPTION_TEST_APP) 
+dbformat_test: $(O) $(DBFORMAT_TEST_APP)
+dbbench: $(O) $(DBBENCH_APP)
+dbtest: $(O) $(DBTEST_APP)
+filenametest: $(O) $(FILENAME_TEST_APP)
+logtest: $(O) $(LOG_TEST_APP)
+skiplisttest: $(O) $(SKIPLIST_TEST_APP)
+versionedittest: $(O) $(VERSIONEDIT_TEST_APP)
+versionsettest: $(O) $(VERSIONSET_TEST_APP)
+writebatchtest: $(O) $(WRITEBATCH_TEST_APP)
+tabletest: $(O) $(TABLE_TEST_APP) 
+arenatest: $(O) $(ARENA_TEST_APP) 
+cachetest: $(O) $(CACHE_TEST_APP)
+codingtest: $(O) $(CODING_TEST_APP) 
+crc32ctest: $(O) $(CRC32C_TEST_APP) 
+envtest: $(O) $(ENV_TEST_APP)
 
 # SHA1 test app uses SHA1_Hash, but only SHA1_Hash_Portable is defined
 # $(SHA1_TEST_APP)
