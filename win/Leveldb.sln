@@ -27,6 +27,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TableTest", "TableTest.vcxp
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArenaTest", "ArenaTest.vcxproj", "{1379F57C-B99B-4950-962C-16D6DFF2125C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CacheTest", "CacheTest.vcxproj", "{42BF4D1A-8C59-4B40-A626-527188973F27}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -85,6 +87,10 @@ Global
 		{1379F57C-B99B-4950-962C-16D6DFF2125C}.Debug|Win32.Build.0 = Debug|Win32
 		{1379F57C-B99B-4950-962C-16D6DFF2125C}.Release|Win32.ActiveCfg = Release|Win32
 		{1379F57C-B99B-4950-962C-16D6DFF2125C}.Release|Win32.Build.0 = Release|Win32
+		{42BF4D1A-8C59-4B40-A626-527188973F27}.Debug|Win32.ActiveCfg = Debug|Win32
+		{42BF4D1A-8C59-4B40-A626-527188973F27}.Debug|Win32.Build.0 = Debug|Win32
+		{42BF4D1A-8C59-4B40-A626-527188973F27}.Release|Win32.ActiveCfg = Release|Win32
+		{42BF4D1A-8C59-4B40-A626-527188973F27}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
