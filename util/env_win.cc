@@ -3,8 +3,9 @@
 #include <string.h>
 #include <deque>
 
-// Undo Windows headers which #defines DeleteFile as DeleteFileA or DeleteFileW,
-// which conflicts with Env::DeleteFile() method.
+// Undo #define DeleteFile as DeleteFileA or DeleteFileW 
+// done in Windows headers, which conflicts with
+// Env::DeleteFile() method.
 // Needs to be done before including leveldb/env.h
 #ifdef DeleteFile
 #undef DeleteFile
@@ -27,7 +28,7 @@
 //   to interpret them according to a current code page
 // This just works for names that don't use characters outside ascii
 // and for those that do, the caller needs to be aware of this convention
-// whenever it percolates up to the user-level API.
+// whenever it bubbles up to the user-level API.
 
 namespace leveldb {
 
@@ -57,10 +58,10 @@ public:
   virtual ~WinSequentialFile() { CloseHandle(file_); }
 
   virtual Status Read(size_t n, Slice* result, char* scratch) {
-    DWORD nToRead = n;
-    DWORD nDidRead = 0;
-    BOOL ok = ReadFile(file_, (void*)scratch, nToRead, &nDidRead, NULL);
-    *result = Slice(scratch, nDidRead);
+    DWORD n2 = n;
+    DWORD r = 0;
+    BOOL ok = ReadFile(file_, (void*)scratch, n2, &r, NULL);
+    *result = Slice(scratch, r);
     if (!ok) {
         // We leave status as ok if we hit the end of the file
         if (GetLastError() != ERROR_HANDLE_EOF) {
@@ -100,10 +101,10 @@ class WinRandomAccessFile: public RandomAccessFile {
         return IOError(filename_);
     }
 
-    DWORD nToRead = n;
-    DWORD nDidRead = 0;
-    BOOL ok = ReadFile(file_, (void*)scratch, nToRead, &nDidRead, NULL);
-    *result = Slice(scratch, nDidRead);
+    DWORD n2 = n;
+    DWORD r = 0;
+    BOOL ok = ReadFile(file_, (void*)scratch, n2, &r, NULL);
+    *result = Slice(scratch, r);
     if (!ok) {
         // We leave status as ok if we hit the end of the file
         if (GetLastError() != ERROR_HANDLE_EOF) {
@@ -127,9 +128,9 @@ public:
   }
 
   virtual Status Append(const Slice& data) {
-    DWORD nToWrite = data.size();
-    DWORD nWritten = 0;
-    BOOL ok = WriteFile(file_, data.data(), nToWrite, &nWritten, NULL);
+    DWORD n = data.size();
+    DWORD w = 0;
+    BOOL ok = WriteFile(file_, data.data(), n, &w, NULL);
     if (!ok)
         return IOError(name_ + "Append: cannot write");
     return Status::OK();
@@ -160,13 +161,13 @@ namespace {
 #define DIR_SEP_STR L"\\"
 
 WCHAR *ToWcharFromCodePage(const char *src, UINT cp) {
-  int requiredBufSize = MultiByteToWideChar(cp, 0, src, -1, NULL, 0);
-  if (0 == requiredBufSize) // indicates an error
+  int required_buf_size = MultiByteToWideChar(cp, 0, src, -1, NULL, 0);
+  if (0 == required_buf_size) // indicates an error
     return NULL;
-  WCHAR *res = reinterpret_cast<WCHAR*>(malloc(sizeof(WCHAR) * requiredBufSize));
+  WCHAR *res = reinterpret_cast<WCHAR*>(malloc(sizeof(WCHAR) * required_buf_size));
   if (!res)
     return NULL;
-  MultiByteToWideChar(cp, 0, src, -1, res, requiredBufSize);
+  MultiByteToWideChar(cp, 0, src, -1, res, required_buf_size);
   return res;
 }
 
@@ -184,11 +185,11 @@ WCHAR *ToWcharPermissive(const char *s) {
 }
 
 char *ToUtf8(const WCHAR *s) {
-    int requiredBufSize = WideCharToMultiByte(CP_UTF8, 0, s, -1, NULL, 0, NULL, NULL);
-    char *res = (char*)malloc(sizeof(char) * requiredBufSize);
+    int required_buf_size = WideCharToMultiByte(CP_UTF8, 0, s, -1, NULL, 0, NULL, NULL);
+    char *res = (char*)malloc(sizeof(char) * required_buf_size);
     if (!res)
         return NULL;
-    WideCharToMultiByte(CP_UTF8, 0, s, -1, res, requiredBufSize, NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, s, -1, res, required_buf_size, NULL, NULL);
     return res;
 }
 
@@ -199,25 +200,25 @@ static size_t WstrLen(const WCHAR *s) {
 }
 
 static WCHAR *WstrJoin(const WCHAR *s1, const WCHAR *s2, const WCHAR *s3=NULL) {
-    size_t s1Len = WstrLen(s1);
-    size_t s2Len = WstrLen(s2);
-    size_t s3Len = WstrLen(s3);
-    size_t len =s1Len + s2Len + s3Len + 1;
+    size_t s1_len = WstrLen(s1);
+    size_t s2_len = WstrLen(s2);
+    size_t s3_len = WstrLen(s3);
+    size_t len =s1_len + s2_len + s3_len + 1;
     WCHAR *res = (WCHAR*)malloc(sizeof(WCHAR) * len);
     if (!res)
         return NULL;
     WCHAR *tmp = res;
     if (s1 != NULL) {
-        memcpy(tmp, s1, s1Len * sizeof(WCHAR));
-        tmp += s1Len;
+        memcpy(tmp, s1, s1_len * sizeof(WCHAR));
+        tmp += s1_len;
     }
     if (s2 != NULL) {
-        memcpy(tmp, s2, s2Len * sizeof(WCHAR));
-        tmp += s2Len;
+        memcpy(tmp, s2, s2_len * sizeof(WCHAR));
+        tmp += s2_len;
     }
     if (s3 != NULL) {
-        memcpy(tmp, s3, s3Len * sizeof(WCHAR));
-        tmp += s3Len;
+        memcpy(tmp, s3, s3_len * sizeof(WCHAR));
+        tmp += s3_len;
     }
     *tmp = 0;
     return res;
@@ -269,12 +270,12 @@ class WinEnv : public Env {
   virtual Status NewSequentialFile(const std::string& fname,
                                    SequentialFile** result) {
     *result = NULL;
-    WCHAR *fileName = ToWcharPermissive(fname.c_str());
-    if (fileName == NULL) {
+    WCHAR *file_name = ToWcharPermissive(fname.c_str());
+    if (file_name == NULL) {
       return Status::InvalidArgument("Invalid file name");
     }
-    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    free((void*)fileName);
+    HANDLE h = CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)file_name);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
     }
@@ -285,12 +286,12 @@ class WinEnv : public Env {
   virtual Status NewRandomAccessFile(const std::string& fname,
                    RandomAccessFile** result) {
     *result = NULL;
-    WCHAR *fileName = ToWcharPermissive(fname.c_str());
-    if (fileName == NULL) {
+    WCHAR *file_name = ToWcharPermissive(fname.c_str());
+    if (file_name == NULL) {
       return Status::InvalidArgument("Invalid file name");
     }
-    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    free((void*)fileName);
+    HANDLE h = CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)file_name);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
     }
@@ -301,11 +302,11 @@ class WinEnv : public Env {
   virtual Status NewWritableFile(const std::string& fname,
                  WritableFile** result) {
     *result = NULL;
-    WCHAR *fileName = ToWcharPermissive(fname.c_str());
-    if (fileName == NULL)
+    WCHAR *file_name = ToWcharPermissive(fname.c_str());
+    if (file_name == NULL)
       return Status::InvalidArgument("Invalid file name");
-    HANDLE h = CreateFileW(fileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    free((void*)fileName);
+    HANDLE h = CreateFileW(file_name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)file_name);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
     }
@@ -314,17 +315,17 @@ class WinEnv : public Env {
   }
 
   virtual bool FileExists(const std::string& fname) {
-    WCHAR *fileName = ToWcharPermissive(fname.c_str());
-    if (fileName == NULL)
+    WCHAR *file_name = ToWcharPermissive(fname.c_str());
+    if (file_name == NULL)
         return false;
 
-    WIN32_FILE_ATTRIBUTE_DATA   fileInfo;
-    BOOL res = GetFileAttributesExW(fileName, GetFileExInfoStandard, &fileInfo);
-    free((void*)fileName);
+    WIN32_FILE_ATTRIBUTE_DATA   file_info;
+    BOOL res = GetFileAttributesExW(file_name, GetFileExInfoStandard, &file_info);
+    free((void*)file_name);
     if (0 == res)
         return false;
 
-    if ((fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+    if ((file_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
         return false;
     return true;
   }
@@ -332,15 +333,15 @@ class WinEnv : public Env {
   virtual Status GetChildren(const std::string& dir,
                std::vector<std::string>* result) {
     result->clear();
-    WCHAR *dirName = ToWcharPermissive(dir.c_str());
-    if (dirName == NULL)
+    WCHAR *dir_name = ToWcharPermissive(dir.c_str());
+    if (dir_name == NULL)
       return Status::InvalidArgument("Invalid file name");
-    WCHAR *pattern = WstrPathJoin(dirName, L"*");
-    free(dirName);
+    WCHAR *pattern = WstrPathJoin(dir_name, L"*");
+    free(dir_name);
     if (NULL == pattern)
       return Status::InvalidArgument("Invalid file name");
-    WIN32_FIND_DATAW fileData;
-    HANDLE h = FindFirstFileW(pattern, &fileData);
+    WIN32_FIND_DATAW file_data;
+    HANDLE h = FindFirstFileW(pattern, &file_data);
     free(pattern);
     if (INVALID_HANDLE_VALUE == h) {
         if (ERROR_FILE_NOT_FOUND == GetLastError())
@@ -348,13 +349,13 @@ class WinEnv : public Env {
         return IOError(dir);
     }
     for (;;) {
-        WCHAR *s = fileData.cFileName;
+        WCHAR *s = file_data.cFileName;
         if (!SkipDir(s)) {
             char *s2 = ToUtf8(s);
             result->push_back(s2);
             free(s2);
         }
-        if (FALSE == FindNextFileW(h, &fileData))
+        if (FALSE == FindNextFileW(h, &file_data))
             break;
     }
     FindClose(h);
@@ -362,12 +363,12 @@ class WinEnv : public Env {
   }
 
   virtual Status DeleteFile(const std::string& fname) {
-    WCHAR *filePath = ToWcharPermissive(fname.c_str());
-    if (filePath == NULL)
+    WCHAR *file_path = ToWcharPermissive(fname.c_str());
+    if (file_path == NULL)
         return Status::InvalidArgument("Invalid file name");
 
-    BOOL ok = DeleteFileW(filePath);
-    free(filePath);
+    BOOL ok = DeleteFileW(file_path);
+    free(file_path);
     if (!ok) {
         DWORD err = GetLastError();
         if ((ERROR_PATH_NOT_FOUND == err) || (ERROR_FILE_NOT_FOUND == err))
@@ -405,12 +406,12 @@ class WinEnv : public Env {
 
   virtual Status GetFileSize(const std::string& fname, uint64_t* size) {
 
-    WCHAR *fileName = ToWcharPermissive(fname.c_str());
-    if (fileName == NULL)
+    WCHAR *file_name = ToWcharPermissive(fname.c_str());
+    if (file_name == NULL)
       return Status::InvalidArgument("Invalid file name");
-    HANDLE h = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL,  
+    HANDLE h = CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ, NULL,  
                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,  NULL); 
-    free(fileName);
+    free(file_name);
     if (h == INVALID_HANDLE_VALUE)
       return  IOError(fname);
 
@@ -426,16 +427,16 @@ class WinEnv : public Env {
   }
 
   virtual Status RenameFile(const std::string& src, const std::string& target) {
-    WCHAR *srcW = ToWcharPermissive(src.c_str());
-    WCHAR *targetW = ToWcharPermissive(target.c_str());
-    if ((srcW == NULL) || (targetW == NULL)) {
-      free(srcW);
-      free(targetW);
+    WCHAR *src2 = ToWcharPermissive(src.c_str());
+    WCHAR *target2 = ToWcharPermissive(target.c_str());
+    if ((src2 == NULL) || (target2 == NULL)) {
+      free(src2);
+      free(target2);
       return Status::InvalidArgument("Invalid file name");
     }
-    BOOL ok = MoveFileExW(srcW, targetW, MOVEFILE_REPLACE_EXISTING);
-    free(srcW);
-    free(targetW);
+    BOOL ok = MoveFileExW(src2, target2, MOVEFILE_REPLACE_EXISTING);
+    free(src2);
+    free(target2);
     if (!ok)
         return IOError(src);
     return Status::OK();
@@ -443,12 +444,12 @@ class WinEnv : public Env {
 
   virtual Status LockFile(const std::string& fname, FileLock** lock) {
     *lock = NULL;
-    WCHAR *fileName = ToWcharPermissive(fname.c_str());
-    if (fileName == NULL) {
+    WCHAR *file_name = ToWcharPermissive(fname.c_str());
+    if (file_name == NULL) {
       return Status::InvalidArgument("Invalid file name");
     }
-    HANDLE h = CreateFileW(fileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    free((void*)fileName);
+    HANDLE h = CreateFileW(file_name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    free((void*)file_name);
     if (h == INVALID_HANDLE_VALUE) {
       return IOError(fname);
     }
