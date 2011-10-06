@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DbBench", "DbBench.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DbTest", "DbTest.vcxproj", "{D5639E07-9EF6-451D-9940-6927CF877561}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FileNameTest", "FileNameTest.vcxproj", "{3B37F521-39A6-4218-B986-50BF5B901707}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -37,6 +39,10 @@ Global
 		{D5639E07-9EF6-451D-9940-6927CF877561}.Debug|Win32.Build.0 = Debug|Win32
 		{D5639E07-9EF6-451D-9940-6927CF877561}.Release|Win32.ActiveCfg = Release|Win32
 		{D5639E07-9EF6-451D-9940-6927CF877561}.Release|Win32.Build.0 = Release|Win32
+		{3B37F521-39A6-4218-B986-50BF5B901707}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3B37F521-39A6-4218-B986-50BF5B901707}.Debug|Win32.Build.0 = Debug|Win32
+		{3B37F521-39A6-4218-B986-50BF5B901707}.Release|Win32.ActiveCfg = Release|Win32
+		{3B37F521-39A6-4218-B986-50BF5B901707}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
