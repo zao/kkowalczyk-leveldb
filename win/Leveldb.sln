@@ -33,6 +33,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CodingTest", "CodingTest.vc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Crc32cTest", "Crc32cTest.vcxproj", "{9DF66F41-4BD8-4392-9FEB-F9E8976C7EC9}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EnvTest", "EnvTest.vcxproj", "{5EC691FA-EEAF-4C56-883C-A895A8032E7E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -103,6 +105,10 @@ Global
 		{9DF66F41-4BD8-4392-9FEB-F9E8976C7EC9}.Debug|Win32.Build.0 = Debug|Win32
 		{9DF66F41-4BD8-4392-9FEB-F9E8976C7EC9}.Release|Win32.ActiveCfg = Release|Win32
 		{9DF66F41-4BD8-4392-9FEB-F9E8976C7EC9}.Release|Win32.Build.0 = Release|Win32
+		{5EC691FA-EEAF-4C56-883C-A895A8032E7E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5EC691FA-EEAF-4C56-883C-A895A8032E7E}.Debug|Win32.Build.0 = Debug|Win32
+		{5EC691FA-EEAF-4C56-883C-A895A8032E7E}.Release|Win32.ActiveCfg = Release|Win32
+		{5EC691FA-EEAF-4C56-883C-A895A8032E7E}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
