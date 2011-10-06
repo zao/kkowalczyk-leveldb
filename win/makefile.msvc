@@ -94,7 +94,7 @@ LEVELDB_OBJS = \
 	$(OT)\hash.obj $(OT)\histogram.obj $(OT)\iterator.obj \
 	$(OT)\log_reader.obj $(OT)\log_writer.obj $(OT)\logging.obj \
 	$(OT)\memtable.obj $(OT)\merger.obj $(OT)\options.obj \
-	$(OT)\port_win.obj $(OT)\repair.obj $(OT)\sha1_portable.obj \
+	$(OT)\port_win.obj $(OT)\repair.obj \
 	$(OT)\status.obj $(OT)\table.obj $(OT)\table_builder.obj \
 	$(OT)\table_cache.obj $(OT)\two_level_iterator.obj \
 	$(OT)\version_edit.obj $(OT)\version_set.obj $(OT)\win_logger.obj \
@@ -145,10 +145,6 @@ WRITEBATCH_TEST_OBJS = $(LEVELDB_OBJS)\
 	$(OT)\write_batch_test.obj $(OT)\testharness.obj $(OT)\testutil.obj
 WRITEBATCH_TEST_APP = $(O)\write_batch_test.exe
 
-SHA1_TEST_OBJS = $(LEVELDB_OBJS)\
-	$(OT)\sha1_test.obj $(OT)\testharness.obj $(OT)\testutil.obj
-SHA1_TEST_APP = $(O)\sha1_test.exe
-
 TABLE_TEST_OBJS = $(LEVELDB_OBJS)\
 	$(OT)\table_test.obj $(OT)\testharness.obj $(OT)\testutil.obj
 TABLE_TEST_APP = $(O)\table_test.exe
@@ -198,9 +194,6 @@ codingtest: $(O) $(CODING_TEST_APP)
 crc32ctest: $(O) $(CRC32C_TEST_APP) 
 envtest: $(O) $(ENV_TEST_APP)
 
-# SHA1 test app uses SHA1_Hash, but only SHA1_Hash_Portable is defined
-# $(SHA1_TEST_APP)
-
 clean: force
 	-rmdir /S /Q $(O)
 
@@ -239,9 +232,6 @@ $(VERSIONSET_TEST_APP): $(VERSIONSET_TEST_OBJS)
 	$(LD) $(LDFLAGS) $** $(LIBS) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
 
 $(WRITEBATCH_TEST_APP): $(WRITEBATCH_TEST_OBJS)
-	$(LD) $(LDFLAGS) $** $(LIBS) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
-
-$(SHA1_TEST_APP): $(SHA1_TEST_OBJS)
 	$(LD) $(LDFLAGS) $** $(LIBS) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
 
 $(TABLE_TEST_APP): $(TABLE_TEST_OBJS)
