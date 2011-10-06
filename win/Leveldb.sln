@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DbTest", "DbTest.vcxproj", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FileNameTest", "FileNameTest.vcxproj", "{3B37F521-39A6-4218-B986-50BF5B901707}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LogTest", "LogTest.vcxproj", "{41E0AD9F-24AA-449A-870A-83E2E4320FE0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -43,6 +45,10 @@ Global
 		{3B37F521-39A6-4218-B986-50BF5B901707}.Debug|Win32.Build.0 = Debug|Win32
 		{3B37F521-39A6-4218-B986-50BF5B901707}.Release|Win32.ActiveCfg = Release|Win32
 		{3B37F521-39A6-4218-B986-50BF5B901707}.Release|Win32.Build.0 = Release|Win32
+		{41E0AD9F-24AA-449A-870A-83E2E4320FE0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{41E0AD9F-24AA-449A-870A-83E2E4320FE0}.Debug|Win32.Build.0 = Debug|Win32
+		{41E0AD9F-24AA-449A-870A-83E2E4320FE0}.Release|Win32.ActiveCfg = Release|Win32
+		{41E0AD9F-24AA-449A-870A-83E2E4320FE0}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
