@@ -145,12 +145,12 @@ public:
   }
 
   virtual Status Flush() {
-    FlushFileBuffers(file_);
     return Status::OK();
   }
 
   virtual Status Sync() {
-    return Flush();
+    FlushFileBuffers(file_);
+    return Status::OK();
   }
 };
 
