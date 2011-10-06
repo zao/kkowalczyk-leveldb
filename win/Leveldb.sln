@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VersionEditTest", "VersionE
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VersionSetTest", "VersionSetTest.vcxproj", "{0936D866-FBC2-480C-83CB-DB74DCD86E8B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WriteBatchTest", "WriteBatchTest.vcxproj", "{8C73E8EF-005B-422C-BC25-1E9B25952948}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -67,6 +69,10 @@ Global
 		{0936D866-FBC2-480C-83CB-DB74DCD86E8B}.Debug|Win32.Build.0 = Debug|Win32
 		{0936D866-FBC2-480C-83CB-DB74DCD86E8B}.Release|Win32.ActiveCfg = Release|Win32
 		{0936D866-FBC2-480C-83CB-DB74DCD86E8B}.Release|Win32.Build.0 = Release|Win32
+		{8C73E8EF-005B-422C-BC25-1E9B25952948}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8C73E8EF-005B-422C-BC25-1E9B25952948}.Debug|Win32.Build.0 = Debug|Win32
+		{8C73E8EF-005B-422C-BC25-1E9B25952948}.Release|Win32.ActiveCfg = Release|Win32
+		{8C73E8EF-005B-422C-BC25-1E9B25952948}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
