@@ -1325,9 +1325,11 @@ Status DestroyDB(const std::string& dbname, const Options& options) {
     uint64_t number;
     FileType type;
     for (size_t i = 0; i < filenames.size(); i++) {
-      if (ParseFileName(filenames[i], &number, &type) &&
-          filenames[i] != lockname) {  // Lock file will be deleted at end
-        Status del = env->DeleteFile(dbname + "/" + filenames[i]);
+      if (!ParseFileName(filenames[i], &number, &type))
+          continue;
+      std::string filepath = PathJoin(dbname, filenames[i]);
+      if (filepath != lockname) {  // Lock file will be deleted at end
+        Status del = env->DeleteFile(filepath);
         if (result.ok() && !del.ok()) {
           result = del;
         }

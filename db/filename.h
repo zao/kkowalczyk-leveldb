@@ -27,6 +27,9 @@ enum FileType {
   kInfoLogFile  // Either the current one, or an old one
 };
 
+// Return a path combining base directory and a file or directory name
+extern std::string PathJoin(const std::string dir, const std::string rest);
+
 // Return the name of the log file with the specified number
 // in the db named by "dbname".  The result will be prefixed with
 // "dbname".

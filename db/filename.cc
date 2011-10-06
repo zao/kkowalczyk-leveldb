@@ -10,14 +10,33 @@
 #include "util/logging.h"
 
 namespace leveldb {
+#if defined(LEVELDB_PLATFORM_WINDOWS)
+static const std::string path_sep_str = "\\";
+#else
+static  const std::string path_sep_str = "/";
+#endif
+
+static bool StringEndsWith(const std::string s, const std::string end)
+{
+    size_t pos = s.find_last_of(end);
+    size_t expected_pos = s.size() - 1;
+    return pos == expected_pos;
+}
+
+std::string PathJoin(const std::string dir, const std::string rest)
+{
+  if (StringEndsWith(dir, path_sep_str))
+      return dir + rest;
+  return dir + path_sep_str + rest;
+}
 
 static std::string MakeFileName(const std::string& name, uint64_t number,
                                 const char* suffix) {
   char buf[100];
-  snprintf(buf, sizeof(buf), "/%06llu.%s",
+  snprintf(buf, sizeof(buf), "%06llu.%s",
            static_cast<unsigned long long>(number),
            suffix);
-  return name + buf;
+  return PathJoin(name, buf);
 }
 
 std::string LogFileName(const std::string& name, uint64_t number) {
@@ -33,17 +52,17 @@ std::string TableFileName(const std::string& name, uint64_t number) {
 std::string DescriptorFileName(const std::string& dbname, uint64_t number) {
   assert(number > 0);
   char buf[100];
-  snprintf(buf, sizeof(buf), "/MANIFEST-%06llu",
+  snprintf(buf, sizeof(buf), "MANIFEST-%06llu",
            static_cast<unsigned long long>(number));
-  return dbname + buf;
+  return PathJoin(dbname, buf);
 }
 
 std::string CurrentFileName(const std::string& dbname) {
-  return dbname + "/CURRENT";
+  return PathJoin(dbname, "CURRENT");
 }
 
 std::string LockFileName(const std::string& dbname) {
-  return dbname + "/LOCK";
+  return PathJoin(dbname, "LOCK");
 }
 
 std::string TempFileName(const std::string& dbname, uint64_t number) {
@@ -52,12 +71,12 @@ std::string TempFileName(const std::string& dbname, uint64_t number) {
 }
 
 std::string InfoLogFileName(const std::string& dbname) {
-  return dbname + "/LOG";
+  return PathJoin(dbname, "LOG");
 }
 
 // Return the name of the old info log file for "dbname".
 std::string OldInfoLogFileName(const std::string& dbname) {
-  return dbname + "/LOG.old";
+  return PathJoin(dbname, "LOG.old");
 }
 
 
@@ -119,7 +138,7 @@ Status SetCurrentFile(Env* env, const std::string& dbname,
   // Remove leading "dbname/" and add newline to manifest file name
   std::string manifest = DescriptorFileName(dbname, descriptor_number);
   Slice contents = manifest;
-  assert(contents.starts_with(dbname + "/"));
+  assert(contents.starts_with(dbname + path_sep_str));
   contents.remove_prefix(dbname.size() + 1);
   std::string tmp = TempFileName(dbname, descriptor_number);
   Status s = WriteStringToFile(env, contents.ToString() + "\n", tmp);

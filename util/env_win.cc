@@ -228,7 +228,7 @@ static bool WstrEndsWith(const WCHAR *s1, WCHAR c) {
     return ((len > 0) && (s1[len-1] == c));
 }
 
-static WCHAR *PathJoin(const WCHAR *s1, const WCHAR *s2) {
+static WCHAR *WstrPathJoin(const WCHAR *s1, const WCHAR *s2) {
     if (WstrEndsWith(s1, DIR_SEP_CHAR))
         return WstrJoin(s1, s2);
     return WstrJoin(s1, DIR_SEP_STR, s2);
@@ -335,7 +335,7 @@ class WinEnv : public Env {
     WCHAR *dirName = ToWcharPermissive(dir.c_str());
     if (dirName == NULL)
       return Status::InvalidArgument("Invalid file name");
-    WCHAR *pattern = PathJoin(dirName, L"*");
+    WCHAR *pattern = WstrPathJoin(dirName, L"*");
     free(dirName);
     if (NULL == pattern)
       return Status::InvalidArgument("Invalid file name");

@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include "db/dbformat.h"
+#include "db/filename.h"
 #include "db/memtable.h"
 #include "db/write_batch_internal.h"
 #include "leveldb/db.h"
@@ -394,7 +395,7 @@ class DBConstructor: public Constructor {
 
  private:
   void NewDB() {
-    std::string name = test::TmpDir() + "/table_testdb";
+    std::string name = PathJoin(test::TmpDir(), "table_testdb");
 
     Options options;
     options.comparator = comparator_;

@@ -35,7 +35,7 @@ class CorruptionTest {
   CorruptionTest() {
     tiny_cache_ = NewLRUCache(100);
     options_.env = &env_;
-    dbname_ = test::PathJoin(test::TmpDir(), "db_test");
+    dbname_ = PathJoin(test::TmpDir(), "db_test");
     DestroyDB(dbname_, options_);
 
     db_ = NULL;
@@ -127,7 +127,7 @@ class CorruptionTest {
       if (ParseFileName(filenames[i], &number, &type) &&
           type == filetype &&
           int(number) > picked_number) {  // Pick latest file
-        fname = test::PathJoin(dbname_, filenames[i]);
+        fname = PathJoin(dbname_, filenames[i]);
         picked_number = number;
       }
     }
