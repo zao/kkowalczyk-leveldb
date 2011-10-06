@@ -137,7 +137,7 @@ public:
 
   virtual Status Close() {
     if (INVALID_HANDLE_VALUE != file_) {
-      Flush();
+      FlushFileBuffers(file_);
       CloseHandle(file_);
       file_ = INVALID_HANDLE_VALUE;
     }
