@@ -84,6 +84,14 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EnvTest", "EnvTest.vcxproj"
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MemEnvTest", "MemEnvTest.vcxproj", "{33FB55B8-EFB4-47FE-B0FF-24287B50D294}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5A742A93-8035-46F4-B132-DB614BDFBBD7} = {5A742A93-8035-46F4-B132-DB614BDFBBD7}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CTest", "CTest.vcxproj", "{736F33CC-9094-4F01-91A5-DCD350D4090C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5A742A93-8035-46F4-B132-DB614BDFBBD7} = {5A742A93-8035-46F4-B132-DB614BDFBBD7}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -128,9 +136,9 @@ Global
 		{5EC691FA-EEAF-4C56-883C-A895A8032E7E}.Debug|Win32.ActiveCfg = Debug|Win32
 		{5EC691FA-EEAF-4C56-883C-A895A8032E7E}.Release|Win32.ActiveCfg = Release|Win32
 		{33FB55B8-EFB4-47FE-B0FF-24287B50D294}.Debug|Win32.ActiveCfg = Debug|Win32
-		{33FB55B8-EFB4-47FE-B0FF-24287B50D294}.Debug|Win32.Build.0 = Debug|Win32
 		{33FB55B8-EFB4-47FE-B0FF-24287B50D294}.Release|Win32.ActiveCfg = Release|Win32
-		{33FB55B8-EFB4-47FE-B0FF-24287B50D294}.Release|Win32.Build.0 = Release|Win32
+		{736F33CC-9094-4F01-91A5-DCD350D4090C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{736F33CC-9094-4F01-91A5-DCD350D4090C}.Release|Win32.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

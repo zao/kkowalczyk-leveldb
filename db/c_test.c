@@ -9,7 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#if defined(LEVELDB_PLATFORM_WINDOWS)
+#define snprintf _snprintf
+#else
 #include <unistd.h>
+#endif
 
 const char* phase = "";
 static char dbname[200];
@@ -132,8 +136,12 @@ int main(int argc, char** argv) {
   leveldb_writeoptions_t* woptions;
   char* err = NULL;
 
+#if defined(LEVELDB_PLATFORM_WINDOWS)
+  snprintf(dbname, sizeof(dbname), "tmp\\leveldb_c_test");
+#else
   snprintf(dbname, sizeof(dbname), "/tmp/leveldb_c_test-%d",
            ((int) geteuid()));
+#endif
 
   StartPhase("create_objects");
   cmp = leveldb_comparator_create(NULL, CmpDestroy, CmpCompare, CmpName);
@@ -182,6 +190,7 @@ int main(int argc, char** argv) {
 
   StartPhase("writebatch");
   {
+    int pos = 0;
     leveldb_writebatch_t* wb = leveldb_writebatch_create();
     leveldb_writebatch_put(wb, "foo", 3, "a", 1);
     leveldb_writebatch_clear(wb);
@@ -193,7 +202,6 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "foo", "hello");
     CheckGet(db, roptions, "bar", NULL);
     CheckGet(db, roptions, "box", "c");
-    int pos = 0;
     leveldb_writebatch_iterate(wb, &pos, CheckPut, CheckDel);
     CheckCondition(pos == 3);
     leveldb_writebatch_destroy(wb);

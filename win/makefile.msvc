@@ -173,13 +173,13 @@ MEMENV_TEST_OBJS = $(LEVELDB_OBJS)\
 	$(OT)\memenv_test.obj $(OT)\testharness.obj $(OT)\testutil.obj
 MEMENV_TEST_APP = $(O)\memenv_test.exe
 
-all: $(O) $(LEVELDBDLL_DLL) $(CORRUPTION_TEST_APP) $(DBFORMAT_TEST_APP)\
-	$(DBBENCH_APP) $(DBTEST_APP) $(FILENAME_TEST_APP) $(LOG_TEST_APP)\
-	$(SKIPLIST_TEST_APP) $(VERSIONEDIT_TEST_APP) \
-	$(VERSIONSET_TEST_APP) $(WRITEBATCH_TEST_APP)\
-	$(TABLE_TEST_APP) $(ARENA_TEST_APP) $(CACHE_TEST_APP) \
-	$(CODING_TEST_APP) $(CRC32C_TEST_APP) $(ENV_TEST_APP) \
-	$(MEMENV_TEST_APP)
+C_TEST_OBJS = $(OT)\c_test.obj
+C_TEST_APP = $(O)\c_test.exe
+
+all: $(O) dll corruptiontest dbformattest dbbench dbtest filenametest \
+	logtest skiplisttest versionedittest versionsettest writebatchtest \
+	tabletest arenatest cachetest codingtest crc32ctest envtest \
+	memenvtest ctest
 
 dll: $(O) $(LEVELDBDLL_DLL)
 corruptiontest: $(O) $(CORRUPTION_TEST_APP) 
@@ -199,6 +199,7 @@ codingtest: $(O) $(CODING_TEST_APP)
 crc32ctest: $(O) $(CRC32C_TEST_APP) 
 envtest: $(O) $(ENV_TEST_APP)
 memenvtest: $(O) $(MEMENV_TEST_APP)
+ctest: $(O) $(C_TEST_APP)
 
 clean: force
 	-rmdir /S /Q $(O)
@@ -208,7 +209,7 @@ $(O): force
 	@if not exist $(OT) mkdir $(OT)
 
 $(LEVELDBDLL_DLL): $(LEVELDBDLL_OBJS) $(LEVELDBDLL_DEF)
-	$(LD) /DLL $(LDFLAGS) $(LEVELDBDLL_OBJS) $(LIBS) /DEF:$(LEVELDBDLL_DEF) /IMPLIB:$(LEVELDBDLL_LIB) /PDB:$*.pdb /OUT:$@
+	$(LD) /DLL $(LDFLAGS) $(LEVELDBDLL_OBJS) $(LIBS) /DEF:$(LEVELDBDLL_DEF) /IMPLIB:$(LEVELDBDLL_LIB) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
 
 $(CORRUPTION_TEST_APP): $(CORRUPTION_TEST_OBJS)
 	$(LD) $(LDFLAGS) $** $(LIBS) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
@@ -261,10 +262,16 @@ $(ENV_TEST_APP): $(ENV_TEST_OBJS)
 $(MEMENV_TEST_APP): $(MEMENV_TEST_OBJS)
 	$(LD) $(LDFLAGS) $** $(LIBS) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
 
+$(C_TEST_APP): $(C_TEST_OBJS)
+	$(LD) $(LDFLAGS) $** $(O)\libleveldb.lib $(LIBS) /PDB:$*.pdb /OUT:$@ /SUBSYSTEM:CONSOLE
+
 {$(SRC)\util}.cc{$(OT)}.obj::
 	$(CC) $(CFLAGS) /Fo$(OT)\ /Fd$(O)\vc80.pdb $<
 
 {$(SRC)\db}.cc{$(OT)}.obj::
+	$(CC) $(CFLAGS) /Fo$(OT)\ /Fd$(O)\vc80.pdb $<
+
+{$(SRC)\db}.c{$(OT)}.obj::
 	$(CC) $(CFLAGS) /Fo$(OT)\ /Fd$(O)\vc80.pdb $<
 
 {$(SRC)\port}.cc{$(OT)}.obj::
