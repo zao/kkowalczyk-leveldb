@@ -27,6 +27,7 @@
     <ClCompile Include="..\db\version_edit.cc" />
     <ClCompile Include="..\db\version_set.cc" />
     <ClCompile Include="..\db\write_batch.cc" />
+    <ClCompile Include="..\helpers\memenv\memenv.cc" />
     <ClCompile Include="..\port\port_win.cc" />
     <ClCompile Include="..\port\sha1_portable.cc" />
     <ClCompile Include="..\table\block.cc" />
@@ -68,6 +69,7 @@
     <ClInclude Include="..\db\version_edit.h" />
     <ClInclude Include="..\db\version_set.h" />
     <ClInclude Include="..\db\write_batch_internal.h" />
+    <ClInclude Include="..\helpers\memenv\memenv.h" />
     <ClInclude Include="..\port\atomic_pointer.h" />
     <ClInclude Include="..\port\port.h" />
     <ClInclude Include="..\port\port_win.h" />

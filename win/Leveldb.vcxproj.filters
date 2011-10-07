@@ -25,6 +25,9 @@
     <Filter Include="Source Files\table">
       <UniqueIdentifier>{4d9e7bf8-f05f-4a3d-85ff-137b9223a2b0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\memenv">
+      <UniqueIdentifier>{639f2890-2378-4340-8838-00670f520e54}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\db\builder.cc">
@@ -147,6 +150,9 @@
     <ClCompile Include="..\util\win_logger.cc">
       <Filter>Source Files\util</Filter>
     </ClCompile>
+    <ClCompile Include="..\helpers\memenv\memenv.cc">
+      <Filter>Source Files\memenv</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\db\builder.h">
@@ -253,6 +259,9 @@
     </ClInclude>
     <ClInclude Include="..\util\win_logger.h">
       <Filter>Source Files\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\helpers\memenv\memenv.h">
+      <Filter>Source Files\memenv</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
