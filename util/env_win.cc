@@ -129,20 +129,24 @@ public:
 
   virtual Status Append(const Slice& data) {
     DWORD n = data.size();
-    DWORD w = 0;
-    BOOL ok = WriteFile(file_, data.data(), n, &w, NULL);
-    if (!ok)
-        return IOError(name_ + "Append: cannot write");
+    DWORD pos = 0;
+    while (pos < n) {
+      DWORD written = 0;
+      BOOL ok = WriteFile(file_,  data.data() + pos, n - pos, &written, NULL);
+      if (!ok)
+        return IOError(name_+ "Append: cannot write");
+      pos += written;
+    }
     return Status::OK();
   }
 
   virtual Status Close() {
-    if (INVALID_HANDLE_VALUE != file_) {
-      FlushFileBuffers(file_);
-      CloseHandle(file_);
-      file_ = INVALID_HANDLE_VALUE;
-    }
-    return Status::OK();
+    if (INVALID_HANDLE_VALUE == file_)
+      return Status::OK();
+    Status s = Sync();
+    CloseHandle(file_);
+    file_ = INVALID_HANDLE_VALUE;
+    return s;
   }
 
   virtual Status Flush() {
@@ -150,7 +154,9 @@ public:
   }
 
   virtual Status Sync() {
-    FlushFileBuffers(file_);
+    BOOL ok = FlushFileBuffers(file_);
+    if (!ok)
+      return IOError(name_);
     return Status::OK();
   }
 };
