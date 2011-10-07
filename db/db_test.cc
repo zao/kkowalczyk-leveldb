@@ -74,7 +74,7 @@ class DBTest {
   Options last_options_;
 
   DBTest() : env_(new SpecialEnv(Env::Default())) {
-    dbname_ = test::TmpDir() + "/db_test";
+    dbname_ = PathJoin(test::TmpDir(), "db_test");
     DestroyDB(dbname_, Options());
     db_ = NULL;
     Reopen();
@@ -1106,7 +1106,7 @@ TEST(DBTest, ManualCompaction) {
 }
 
 TEST(DBTest, DBOpen_Options) {
-  std::string dbname = test::TmpDir() + "/db_options_test";
+  std::string dbname = PathJoin(test::TmpDir(), "db_options_test");
   DestroyDB(dbname, Options());
 
   // Does not exist, and create_if_missing == false: error
@@ -1475,7 +1475,7 @@ std::string MakeKey(unsigned int num) {
 }
 
 void BM_LogAndApply(int iters, int num_base_files) {
-  std::string dbname = test::TmpDir() + "/leveldb_test_benchmark";
+  std::string dbname = PathJoin(test::TmpDir(), "leveldb_test_benchmark");
   DestroyDB(dbname, Options());
 
   DB* db = NULL;

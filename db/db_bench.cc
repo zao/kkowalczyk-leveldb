@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "db/db_impl.h"
+#include "db/filename.h"
 #include "db/version_set.h"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
@@ -392,7 +393,7 @@ class Benchmark {
     Env::Default()->GetChildren(FLAGS_db, &files);
     for (int i = 0; i < files.size(); i++) {
       if (Slice(files[i]).starts_with("heap-")) {
-        Env::Default()->DeleteFile(std::string(FLAGS_db) + "/" + files[i]);
+        Env::Default()->DeleteFile(PathJoin(std::string(FLAGS_db), files[i]));
       }
     }
     if (!FLAGS_use_existing_db) {

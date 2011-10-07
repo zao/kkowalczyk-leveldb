@@ -343,7 +343,7 @@ class Repairer {
     } else {
       // Discard older manifests
       for (size_t i = 0; i < manifests_.size(); i++) {
-        ArchiveFile(dbname_ + "/" + manifests_[i]);
+        ArchiveFile(PathJoin(dbname_, manifests_[i]));
       }
 
       // Install new manifest

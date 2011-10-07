@@ -276,6 +276,11 @@ class InMemoryEnv : public EnvWrapper {
     return file_map_.find(fname) != file_map_.end();
   }
 
+  bool IsPathSep(char c)
+  {
+      return (c == '/') || (c == '\\');
+  }
+
   virtual Status GetChildren(const std::string& dir,
                              std::vector<std::string>* result) {
     MutexLock lock(&mutex_);
@@ -284,7 +289,7 @@ class InMemoryEnv : public EnvWrapper {
     for (FileSystem::iterator i = file_map_.begin(); i != file_map_.end(); ++i){
       const std::string& filename = i->first;
 
-      if (filename.size() >= dir.size() + 1 && filename[dir.size()] == '/' &&
+      if (filename.size() >= dir.size() + 1 && IsPathSep(filename[dir.size()]) &&
           Slice(filename).starts_with(Slice(dir))) {
         result->push_back(filename.substr(dir.size() + 1));
       }

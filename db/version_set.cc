@@ -811,7 +811,7 @@ Status VersionSet::Recover() {
   }
   current.resize(current.size() - 1);
 
-  std::string dscname = dbname_ + "/" + current;
+  std::string dscname = PathJoin(dbname_, current);
   SequentialFile* file;
   s = env_->NewSequentialFile(dscname, &file);
   if (!s.ok()) {

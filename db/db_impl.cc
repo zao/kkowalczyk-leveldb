@@ -241,7 +241,7 @@ void DBImpl::DeleteObsoleteFiles() {
         Log(options_.info_log, "Delete type=%d #%lld\n",
             int(type),
             static_cast<unsigned long long>(number));
-        env_->DeleteFile(dbname_ + "/" + filenames[i]);
+        env_->DeleteFile(PathJoin(dbname_, filenames[i]));
       }
     }
   }
