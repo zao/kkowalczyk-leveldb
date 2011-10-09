@@ -51,13 +51,6 @@ static void CheckEqual(const char* expected, const char* v, size_t n) {
   }
 }
 
-static void Free(char** ptr) {
-  if (*ptr) {
-    free(*ptr);
-    *ptr = NULL;
-  }
-}
-
 static void CheckGet(
     leveldb_t* db,
     const leveldb_readoptions_t* options,
@@ -69,7 +62,7 @@ static void CheckGet(
   val = leveldb_get(db, options, key, strlen(key), &val_len, &err);
   CheckNoError(err);
   CheckEqual(expected, val, val_len);
-  Free(&val);
+  leveldb_free(&val);
 }
 
 static void CheckIter(leveldb_iterator_t* iter,
@@ -137,7 +130,8 @@ int main(int argc, char** argv) {
   char* err = NULL;
 
 #if defined(LEVELDB_PLATFORM_WINDOWS)
-  snprintf(dbname, sizeof(dbname), "tmp\\leveldb_c_test");
+  //snprintf(dbname, sizeof(dbname), "tmp\\leveldb_c_test");
+  snprintf(dbname, sizeof(dbname), "leveldb_c_test");
 #else
   snprintf(dbname, sizeof(dbname), "/tmp/leveldb_c_test-%d",
            ((int) geteuid()));
@@ -170,12 +164,12 @@ int main(int argc, char** argv) {
 
   StartPhase("destroy");
   leveldb_destroy_db(options, dbname, &err);
-  Free(&err);
+  leveldb_free(&err);
 
   StartPhase("open_error");
   db = leveldb_open(options, dbname, &err);
   CheckCondition(err != NULL);
-  Free(&err);
+  leveldb_free(&err);
 
   StartPhase("open");
   leveldb_options_set_create_if_missing(options, 1);
@@ -259,7 +253,7 @@ int main(int argc, char** argv) {
     CheckCondition(prop == NULL);
     prop = leveldb_property_value(db, "leveldb.stats");
     CheckCondition(prop != NULL);
-    Free(&prop);
+    leveldb_free(&prop);
   }
 
   StartPhase("snapshot");

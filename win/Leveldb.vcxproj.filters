@@ -28,6 +28,9 @@
     <Filter Include="Source Files\memenv">
       <UniqueIdentifier>{639f2890-2378-4340-8838-00670f520e54}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\include">
+      <UniqueIdentifier>{d6a0dcae-97d1-48ea-9d92-48e75b11fbdb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\db\builder.cc">
@@ -262,6 +265,42 @@
     </ClInclude>
     <ClInclude Include="..\helpers\memenv\memenv.h">
       <Filter>Source Files\memenv</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\c.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\cache.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\comparator.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\db.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\env.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\iterator.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\options.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\slice.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\status.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\table.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\table_builder.h">
+      <Filter>Source Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\leveldb\write_batch.h">
+      <Filter>Source Files\include</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

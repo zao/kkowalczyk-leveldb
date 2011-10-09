@@ -239,6 +239,9 @@ extern void leveldb_cache_destroy(leveldb_cache_t* cache);
 extern leveldb_env_t* leveldb_create_default_env();
 extern void leveldb_env_destroy(leveldb_env_t*);
 
+/* Misc */
+extern void leveldb_free(char** ptr);
+
 #ifdef __cplusplus
 }  /* end extern "C" */
 #endif

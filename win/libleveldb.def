@@ -79,3 +79,6 @@ EXPORTS
 	; env
 	leveldb_create_default_env
 	leveldb_env_destroy
+
+	; misc
+	leveldb_free
