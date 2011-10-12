@@ -384,18 +384,74 @@ class WinEnv : public Env {
     return Status::OK();
   }
 
+  bool CreateDirIfNotExists(const WCHAR *dir) {
+    BOOL ok = CreateDirectoryW(dir, NULL);
+    if (ok)
+        return true;
+    return ERROR_ALREADY_EXISTS == GetLastError();
+  }
+
+  bool DirExists(const WCHAR *dir) {
+    WIN32_FILE_ATTRIBUTE_DATA   file_info;
+    BOOL res = GetFileAttributesExW(dir, GetFileExInfoStandard, &file_info);
+    if (0 == res)
+        return false;
+
+    return (file_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+  }
+
+  WCHAR *WstrDupN(const WCHAR *s, size_t len) {
+      void *res = malloc((len + 1) * sizeof(WCHAR));
+      if (!res)
+          return NULL;
+      memcpy(res, s, len * sizeof(WCHAR));
+      WCHAR *res2 = reinterpret_cast<WCHAR*>(res);
+      res2[len] = 0;
+      return res2;
+  }
+
+  bool IsPathSep(WCHAR c) {
+      return (c == '\\') || (c == '/');
+  }
+
+  WCHAR *GetPathParent(const WCHAR *path) {
+      const WCHAR *last_sep = NULL;
+      const WCHAR *tmp = path;
+      // find the last path separator 
+      // (ignoring one at the end of the string)
+      while (*tmp) {
+          if (IsPathSep(*tmp)) {
+              if (0 != tmp[1])
+                  last_sep = tmp;
+          }
+          ++tmp;
+      }
+      if (NULL == last_sep)
+          return NULL;
+      size_t len = last_sep - path;
+      return WstrDupN(path, len);
+  }
+
+  bool CreateDirRecursive(WCHAR *dir) {
+    WCHAR *parent = GetPathParent(dir);
+    bool ok = true;
+    if (parent && !DirExists(parent)) {
+        ok = CreateDirRecursive(parent);
+    }
+    free(parent);
+    if (!ok)
+        return false;
+    return CreateDirIfNotExists(dir);
+  }
+
   virtual Status CreateDir(const std::string& name) {
-    // TODO: implement recursive creation?
     WCHAR *dir = ToWcharPermissive(name.c_str());
     if (dir == NULL)
       return Status::InvalidArgument("Invalid file name");
-    BOOL ok = CreateDirectoryW(dir, NULL);
+    bool ok = CreateDirRecursive(dir);
     free(dir);
-    if (!ok) {
-        if (ERROR_ALREADY_EXISTS == GetLastError())
-          return Status::OK();
+    if (!ok)
         return IOError(name);
-    }
     return Status::OK();
   }
 

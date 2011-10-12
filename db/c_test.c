@@ -130,8 +130,7 @@ int main(int argc, char** argv) {
   char* err = NULL;
 
 #if defined(LEVELDB_PLATFORM_WINDOWS)
-  //snprintf(dbname, sizeof(dbname), "tmp\\leveldb_c_test");
-  snprintf(dbname, sizeof(dbname), "leveldb_c_test");
+  snprintf(dbname, sizeof(dbname), "tmp\\leveldb_c_test");
 #else
   snprintf(dbname, sizeof(dbname), "/tmp/leveldb_c_test-%d",
            ((int) geteuid()));
