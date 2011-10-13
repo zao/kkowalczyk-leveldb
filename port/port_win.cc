@@ -30,12 +30,99 @@
 
 #include "port/port_win.h"
 
-#include <windows.h>
 #include <cassert>
 
 namespace leveldb {
 namespace port {
 
+#if 1
+Mutex::Mutex() :
+  mutex_(::CreateMutex(NULL, FALSE, NULL)) {
+  assert(mutex_);
+}
+
+Mutex::~Mutex() {
+  assert(mutex_);
+  ::CloseHandle(mutex_);
+}
+
+void Mutex::Lock() {
+  assert(mutex_);
+  ::WaitForSingleObject(mutex_, INFINITE);
+}
+
+void Mutex::Unlock() {
+  assert(mutex_);
+  ::ReleaseMutex(mutex_);
+}
+
+void Mutex::AssertHeld() {
+  assert(mutex_);
+  assert(1);
+}
+
+CondVar::CondVar(Mutex* mu) :
+    waiting_(0), 
+    mu_(mu), 
+    sema_(::CreateSemaphore(NULL, 0, 0x7fffffff, NULL)), 
+    event_(::CreateEvent(NULL, FALSE, FALSE, NULL)),
+    broadcasted_(false){
+  assert(mu_);
+}
+
+CondVar::~CondVar() {
+  ::CloseHandle(sema_);
+  ::CloseHandle(event_);
+}
+
+void CondVar::Wait() {
+  wait_mtx_.Lock();
+  ++waiting_;
+  assert(waiting_ > 0);
+  wait_mtx_.Unlock();
+
+  ::SignalObjectAndWait(mu_->mutex_, sema_, INFINITE, FALSE);
+
+  wait_mtx_.Lock();
+  bool last = broadcasted_ && (--waiting_ == 0);
+  assert(waiting_ >= 0);
+  wait_mtx_.Unlock();
+
+  // we leave this function with the mutex held
+  if (last)
+    ::SignalObjectAndWait(event_, mu_->mutex_, INFINITE, FALSE);
+  else
+    ::WaitForSingleObject(mu_->mutex_, INFINITE);
+}
+
+void CondVar::Signal() {
+  wait_mtx_.Lock();
+  bool waiters = waiting_ > 0;
+  wait_mtx_.Unlock();
+
+  if (waiters)
+    ::ReleaseSemaphore(sema_, 1, 0);
+}
+
+void CondVar::SignalAll() {
+  wait_mtx_.Lock();
+
+  broadcasted_ = (waiting_ > 0);
+
+  if (broadcasted_)
+  {
+      // release all
+    ::ReleaseSemaphore(sema_, waiting_, 0);
+    wait_mtx_.Unlock();
+    ::WaitForSingleObject(event_, INFINITE);
+    broadcasted_ = false;
+  }
+  else
+  {
+    wait_mtx_.Unlock();
+  }
+}
+#else
 Mutex::Mutex() :
     cs_(nullptr) {
   assert(!cs_);
@@ -119,28 +206,7 @@ void CondVar::SignalAll() {
   }
   wait_mtx_.Unlock();
 }
-
-AtomicPointer::AtomicPointer(void* v) {
-  Release_Store(v);
-}
-
-void* AtomicPointer::Acquire_Load() const {
-  void * p = nullptr;
-  InterlockedExchangePointer(&p, rep_);
-  return p;
-}
-
-void AtomicPointer::Release_Store(void* v) {
-  InterlockedExchangePointer(&rep_, v);
-}
-
-void* AtomicPointer::NoBarrier_Load() const {
-  return rep_;
-}
-
-void AtomicPointer::NoBarrier_Store(void* v) {
-  rep_ = v;
-}
+#endif
 
 }
 }
