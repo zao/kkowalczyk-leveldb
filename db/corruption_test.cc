@@ -116,6 +116,7 @@ class CorruptionTest {
   }
 
   void Corrupt(FileType filetype, int offset, int bytes_to_corrupt) {
+    Status s;
     // Pick file to corrupt
     std::vector<std::string> filenames;
     ASSERT_OK(env_.GetChildren(dbname_, &filenames));
@@ -133,30 +134,31 @@ class CorruptionTest {
     }
     ASSERT_TRUE(!fname.empty()) << filetype;
 
-    struct stat sbuf;
-    if (stat(fname.c_str(), &sbuf) != 0) {
-      const char* msg = strerror(errno);
-      ASSERT_TRUE(false) << fname << ": " << msg;
+    uint64_t file_size;
+    s  = env_.GetFileSize(fname, &file_size);
+    if (!s.ok()) {
+      ASSERT_TRUE(false) << fname << ": " << s.ToString();
     }
+    int fsize = (int)file_size;
 
     if (offset < 0) {
       // Relative to end of file; make it absolute
-      if (-offset > sbuf.st_size) {
+      if (-offset > fsize) {
         offset = 0;
       } else {
-        offset = sbuf.st_size + offset;
+        offset = fsize + offset;
       }
     }
-    if (offset > sbuf.st_size) {
-      offset = sbuf.st_size;
+    if (offset > fsize) {
+      offset = fsize;
     }
-    if (offset + bytes_to_corrupt > sbuf.st_size) {
-      bytes_to_corrupt = sbuf.st_size - offset;
+    if (offset + bytes_to_corrupt > fsize) {
+      bytes_to_corrupt = fsize - offset;
     }
 
     // Do it
     std::string contents;
-    Status s = ReadFileToString(Env::Default(), fname, &contents);
+    s = ReadFileToString(Env::Default(), fname, &contents);
     ASSERT_TRUE(s.ok()) << s.ToString();
     for (int i = 0; i < bytes_to_corrupt; i++) {
       contents[i + offset] ^= 0x80;
