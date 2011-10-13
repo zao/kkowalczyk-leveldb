@@ -1,15 +1,6 @@
-#include <Windows.h>
 #include <stdio.h>
 #include <string.h>
 #include <deque>
-
-// Undo #define DeleteFile as DeleteFileA or DeleteFileW 
-// done in Windows headers, which conflicts with
-// Env::DeleteFile() method.
-// Needs to be done before including leveldb/env.h
-#ifdef DeleteFile
-#undef DeleteFile
-#endif
 
 #include "leveldb/env.h"
 #include "leveldb/slice.h"
@@ -253,16 +244,25 @@ static bool SkipDir(const WCHAR *s) {
     return false;
 }
 
-static BOOL WinLockFile(HANDLE file) {
-  return LockFile(file, 0, 0, 0, 1);
-}
-
-static BOOL WinUnlockFile(HANDLE file) {
-  return UnlockFile(file, 0, 0, 0, 1);
-}
-
 class WinFileLock : public FileLock {
  public:
+  WinFileLock(const std::string &fname, HANDLE file)
+    : fname_(fname), file_(file) {
+  }
+
+  virtual ~WinFileLock() {
+    Close();
+  }
+
+  bool Close() {
+    bool ok = true;
+    if (file_ != INVALID_HANDLE_VALUE)
+      ok = (CloseHandle(file_) != FALSE);
+    file_ = INVALID_HANDLE_VALUE;
+    return ok;
+  }
+
+  std::string fname_;
   HANDLE file_;
 };
 
@@ -380,7 +380,7 @@ class WinEnv : public Env {
         DWORD err = GetLastError();
         if ((ERROR_PATH_NOT_FOUND == err) || (ERROR_FILE_NOT_FOUND == err))
           return Status::OK();
-      return IOError(fname);
+      return IOError("DeleteFile " + fname);
     }
     return Status::OK();
   }
@@ -388,9 +388,28 @@ class WinEnv : public Env {
   bool CreateDirIfNotExists(const WCHAR *dir) {
     BOOL ok = CreateDirectoryW(dir, NULL);
     if (ok)
-        return true;
-    return ERROR_ALREADY_EXISTS == GetLastError();
+      return true;
+    return (ERROR_ALREADY_EXISTS == GetLastError())
   }
+
+#if 0
+  bool CreateDirIfNotExists(const WCHAR *dir) {
+    int n = 0;
+    while (n < 8)
+    {
+      BOOL ok = CreateDirectoryW(dir, NULL);
+      if (ok)
+        return true;
+      if (ERROR_ALREADY_EXISTS == GetLastError())
+        return true;
+      if (ERROR_DELETE_PENDING != GetLastError())
+        return false;
+      Sleep(1);
+      n++;
+    }
+    return false;
+  }
+#endif
 
   bool DirExists(const WCHAR *dir) {
     WIN32_FILE_ATTRIBUTE_DATA   file_info;
@@ -456,6 +475,7 @@ class WinEnv : public Env {
     return Status::OK();
   }
 
+#if 1
   virtual Status DeleteDir(const std::string& name) {
     WCHAR *dir = ToWcharPermissive(name.c_str());
     if (dir == NULL)
@@ -466,24 +486,41 @@ class WinEnv : public Env {
         return IOError(name);
     return Status::OK();
   }
+#else
+  virtual Status DeleteDir(const std::string& dirname) {
+    WCHAR *dir = ToWcharPermissive(dirname.c_str());
+    if (dir == NULL)
+      return Status::InvalidArgument("Invalid file name");
+
+    SHFILEOPSTRUCTW fileop = { 0 };
+    fileop.wFunc = FO_DELETE;
+    fileop.pFrom = (const WCHAR*)dir;
+    fileop.fFlags = FOF_NO_UI;
+    int res = SHFileOperationW(&fileop);
+    free((void*)dir);
+    if (res == 0 && fileop.fAnyOperationsAborted == FALSE)
+      return Status::OK();
+    return IOError("DeleteDir " + dirname);
+  }
+#endif
 
   virtual Status GetFileSize(const std::string& fname, uint64_t* size) {
 
     WCHAR *file_name = ToWcharPermissive(fname.c_str());
     if (file_name == NULL)
       return Status::InvalidArgument("Invalid file name");
-    HANDLE h = CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ, NULL,  
+    HANDLE h = CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,  
                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,  NULL); 
     free(file_name);
     if (h == INVALID_HANDLE_VALUE)
-      return  IOError(fname);
+      return  IOError("GetFileSize " + fname);
 
     // Not using GetFileAttributesEx() as it doesn't interact well with symlinks, etc.
     LARGE_INTEGER lsize;
     BOOL ok = GetFileSizeEx(h, &lsize);
     CloseHandle(h);
     if (!ok)
-      return  IOError(fname);
+      return  IOError("GetFileSize " + fname);
 
     *size = static_cast<uint64_t>(lsize.QuadPart);
     return Status::OK();
@@ -501,7 +538,7 @@ class WinEnv : public Env {
     free(src2);
     free(target2);
     if (!ok)
-        return IOError(src);
+        return IOError("RenameFile " + src + " " + target);
     return Status::OK();
   }
 
@@ -511,28 +548,22 @@ class WinEnv : public Env {
     if (file_name == NULL) {
       return Status::InvalidArgument("Invalid file name");
     }
-    HANDLE h = CreateFileW(file_name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE h = CreateFileW(file_name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     free((void*)file_name);
     if (h == INVALID_HANDLE_VALUE) {
-      return IOError(fname);
+      return IOError("LockFile " + fname);
     }
-    if (!WinLockFile(h)) {
-        CloseHandle(h);
-        return IOError("lock " + fname);
-    }
-    WinFileLock* my_lock = new WinFileLock;
-    my_lock->file_ = h;
-    *lock = my_lock;
+    *lock = new WinFileLock(fname, h);
     return Status::OK();
   }
 
   virtual Status UnlockFile(FileLock* lock) {
+    Status s;
     WinFileLock* my_lock = reinterpret_cast<WinFileLock*>(lock);
-    BOOL ok = WinUnlockFile(my_lock->file_);
-    CloseHandle(my_lock->file_);
+    if (!my_lock->Close()) {
+      s = Status::IOError(my_lock->fname_, "Could not close lock file.");
+    }
     delete my_lock;
-    if (!ok)
-        return IOError("unlock");
     return Status::OK();
   }
 
