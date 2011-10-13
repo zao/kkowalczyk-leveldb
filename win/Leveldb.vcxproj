@@ -134,7 +134,7 @@
     <NMakeBuildCommandLine>nmake -f makefile.msvc CFG=dbg SRC=.. all</NMakeBuildCommandLine>
     <NMakeOutput>..\dbg\libleveldb.dll</NMakeOutput>
     <NMakePreprocessorDefinitions>WIN32;_DEBUG;LEVELDB_PLATFORM_WINDOWS;OS_WIN;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeReBuildCommandLine>nmake -f makefile.msvc clean &amp;&amp; nmake -f makefile.msvc CFG=dbg SRC=.. dll</NMakeReBuildCommandLine>
+    <NMakeReBuildCommandLine>nmake -f makefile.msvc clean &amp;&amp; nmake -f makefile.msvc CFG=dbg SRC=.. all</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>nmake -f makefile.msvc clean</NMakeCleanCommandLine>
     <NMakeIncludeSearchPath>$(MSBuildProjectDirectory)\..;$(MSBuildProjectDirectory)\..\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
   </PropertyGroup>
@@ -144,7 +144,7 @@
     <NMakePreprocessorDefinitions>WIN32;NDEBUG;LEVELDB_PLATFORM_WINDOWS;OS_WIN;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <NMakeCleanCommandLine>nmake -f makefile.msvc clean</NMakeCleanCommandLine>
     <NMakeIncludeSearchPath>$(MSBuildProjectDirectory)\..;$(MSBuildProjectDirectory)\..\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
-    <NMakeReBuildCommandLine>nmake -f makefile.msvc clean &amp;&amp; nmake -f makefile.msvc CFG=rel SRC=.. dll</NMakeReBuildCommandLine>
+    <NMakeReBuildCommandLine>nmake -f makefile.msvc clean &amp;&amp; nmake -f makefile.msvc CFG=rel SRC=.. all</NMakeReBuildCommandLine>
   </PropertyGroup>
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>
