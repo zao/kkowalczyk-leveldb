@@ -80,8 +80,6 @@ CFLAGS = $(CFLAGS) /D LEVELDB_PLATFORM_WINDOWS /D OS_WIN
 CFLAGS = $(CFLAGS) /I$(SRC)\include /I$(SRC)
 LIBS = $(LIBS) kernel32.lib
 
-# user32.lib
-
 LD = link.exe
 LDFLAGS = $(LDFLAGS) /nologo /DEBUG /RELEASE /opt:ref /opt:icf
 

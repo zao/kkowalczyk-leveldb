@@ -389,7 +389,7 @@ class WinEnv : public Env {
     BOOL ok = CreateDirectoryW(dir, NULL);
     if (ok)
       return true;
-    return (ERROR_ALREADY_EXISTS == GetLastError())
+    return (ERROR_ALREADY_EXISTS == GetLastError());
   }
 
 #if 0

@@ -57,7 +57,11 @@ namespace port {
 // Windows is little endian (for now :p)
 static const bool kLittleEndian = true;
 
-#if 1
+// 1 is implementation from bgrainger
+// 2 is implementation from main repo with my fix
+#define COND_VAR_IMPL 2
+
+#if COND_VAR_IMPL == 1
 // A Mutex represents an exclusive lock.
 class Mutex {
  public:
@@ -78,7 +82,7 @@ class Mutex {
   void AssertHeld();
 
  private:
-   friend class CondVar;
+  friend class CondVar;
 
   HANDLE mutex_;
 
@@ -117,24 +121,39 @@ private:
 
   bool broadcasted_;
 };
-#else
+#endif
+
+#if COND_VAR_IMPL == 2
 class CondVar;
 
 class Mutex {
  public:
-  Mutex();
-  ~Mutex();
+  Mutex() {
+    ::InitializeCriticalSection(&cs_);
+  }
 
-  void Lock();
-  void Unlock();
-  void AssertHeld();
+  ~Mutex(){
+    ::DeleteCriticalSection(&cs_);
+  }
+
+  void Lock() {
+    ::EnterCriticalSection(&cs_);
+  }
+
+  void Unlock() {
+     ::LeaveCriticalSection(&cs_);
+  }
+
+  void AssertHeld() {
+    
+  }
 
  private:
   friend class CondVar;
   // critical sections are more efficient than mutexes
   // but they are not recursive and can only be used to synchronize threads within the same process
   // we use opaque void * to avoid including windows.h in port_win.h
-  void * cs_;
+  CRITICAL_SECTION cs_;
 
   // No copying
   Mutex(const Mutex&);
@@ -159,9 +178,7 @@ class CondVar {
   long waiting_;
   
   void * sem1_;
-  void * sem2_;
-  
-  
+  void * sem2_;  
 };
 #endif
 

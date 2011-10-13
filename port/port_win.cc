@@ -35,7 +35,7 @@
 namespace leveldb {
 namespace port {
 
-#if 1
+#if COND_VAR_IMPL == 1
 Mutex::Mutex() :
   mutex_(::CreateMutex(NULL, FALSE, NULL)) {
   assert(mutex_);
@@ -122,43 +122,14 @@ void CondVar::SignalAll() {
     wait_mtx_.Unlock();
   }
 }
-#else
-Mutex::Mutex() :
-    cs_(nullptr) {
-  assert(!cs_);
-  cs_ = static_cast<void *>(new CRITICAL_SECTION());
-  ::InitializeCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
-  assert(cs_);
-}
+#endif
 
-Mutex::~Mutex() {
-  assert(cs_);
-  ::DeleteCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
-  delete static_cast<CRITICAL_SECTION *>(cs_);
-  cs_ = nullptr;
-  assert(!cs_);
-}
-
-void Mutex::Lock() {
-  assert(cs_);
-  ::EnterCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
-}
-
-void Mutex::Unlock() {
-  assert(cs_);
-  ::LeaveCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
-}
-
-void Mutex::AssertHeld() {
-  assert(cs_);
-  assert(1);
-}
-
+#if COND_VAR_IMPL == 2
 CondVar::CondVar(Mutex* mu) :
-    waiting_(0), 
-    mu_(mu), 
-    sem1_(::CreateSemaphore(NULL, 0, 10000, NULL)), 
-    sem2_(::CreateSemaphore(NULL, 0, 10000, NULL)) {
+  waiting_(0), 
+  mu_(mu), 
+  sem1_(::CreateSemaphore(NULL, 0, 10000, NULL)), 
+  sem2_(::CreateSemaphore(NULL, 0, 10000, NULL)) {
   assert(mu_);
 }
 
