@@ -1,59 +1,61 @@
-@REM assumes we're being run from top-level directory as:
-@REM win\build.bat
+@REM assumes we're being run from win directory as: build.bat
 
 @ECHO OFF
 SETLOCAL
 
-@REM TODO: jump to Just32rel if %1 is 32rel, Just32dbg if %1 is 32dbg etc.
+IF "%1"=="Just32rel" GOTO Just32rel
+IF "%1"=="Just32dbg" GOTO Just32dbg
+IF "%1"=="Just64rel" GOTO Just64rel
+IF "%1"=="Just64dbg" GOTO Just64dbg
 
-CALL win\vc32.bat
+CALL vc32.bat
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=rel
+nmake -f makefile.msvc CFG=rel SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=dbg
+nmake -f makefile.msvc CFG=dbg SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 
-CALL win\vc64.bat
+CALL vc64.bat
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=rel PLATFORM=X64
+nmake -f makefile.msvc CFG=rel PLATFORM=X64 SRC=..
 F ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=dbg PLATFORM=X64
+nmake -f makefile.msvc CFG=dbg PLATFORM=X64 SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 goto END
 
 :Just32rel
-CALL win\vc32.bat
+CALL vc32.bat
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=rel
+nmake -f makefile.msvc CFG=rel SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 goto END
 
 :Just32dbg
-CALL win\vc32.bat
+CALL vc32.bat
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=dbg
+nmake -f makefile.msvc CFG=dbg SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 goto END
 
 :Just64rel
-CALL win\vc64.bat
+CALL vc64.bat
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=rel PLATFORM=X64
+nmake -f makefile.msvc CFG=rel PLATFORM=X64 SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 goto END
 
 :Just64dbg
-CALL win\vc64.bat
+CALL vc64.bat
 IF ERRORLEVEL 1 EXIT /B 1
 
-nmake -f win\makefile.msvc CFG=dbg PLATFORM=X64
+nmake -f makefile.msvc CFG=dbg PLATFORM=X64 SRC=..
 IF ERRORLEVEL 1 EXIT /B 1
 goto END
 

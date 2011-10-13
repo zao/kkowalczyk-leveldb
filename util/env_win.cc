@@ -123,7 +123,8 @@ private:
 public:
   WinWritableFile(std::string name, HANDLE h) : name_(name), file_(h) {
   }
-  ~WinWritableFile() {
+
+  virtual ~WinWritableFile() {
     Close();
   }
 
