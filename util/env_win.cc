@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <deque>
+#include <process.h>
 
 #include "leveldb/env.h"
 #include "leveldb/slice.h"
@@ -614,14 +615,15 @@ private:
   // BGThread() is the body of the background thread
   void BGThread();
 
-  static DWORD WINAPI BGThreadWrapper(void* arg) {
+  static unsigned __stdcall BGThreadWrapper(void* arg) {
     (reinterpret_cast<WinEnv*>(arg))->BGThread();
-    return NULL;
+    _endthreadex(0);
+    return 0;
   }
 
   leveldb::port::Mutex mu_;
   leveldb::port::CondVar bgsignal_;
-  HANDLE bgthread_;
+  HANDLE  bgthread_;
 
   // Entry per Schedule() call
   struct BGItem { void* arg; void (*function)(void*); };
@@ -638,7 +640,7 @@ void WinEnv::Schedule(void (*function)(void*), void* arg) {
 
   // Start background thread if necessary
   if (NULL == bgthread_) {
-    bgthread_ = CreateThread(NULL, 0, &WinEnv::BGThreadWrapper, this, 0, NULL);
+    bgthread_ = (HANDLE)_beginthreadex(NULL, 0, &WinEnv::BGThreadWrapper, this, 0, NULL);
   }
 
   // Add to priority queue
@@ -667,6 +669,7 @@ void WinEnv::BGThread() {
     mu_.Unlock();
     (*function)(arg);
   }
+  // TODO: CloseHandle(bgthread_) ??
 }
 
 namespace {
@@ -677,9 +680,10 @@ struct StartThreadState {
 };
 }
 
-static DWORD WINAPI StartThreadWrapper(void* arg) {
+static unsigned __stdcall StartThreadWrapper(void* arg) {
   StartThreadState* state = reinterpret_cast<StartThreadState*>(arg);
   state->user_function(state->arg);
+  _endthreadex(0);
   CloseHandle(state->threadHandle);
   delete state;
   return 0;
@@ -689,7 +693,7 @@ void WinEnv::StartThread(void (*function)(void* arg), void* arg) {
   StartThreadState* state = new StartThreadState;
   state->user_function = function;
   state->arg = arg;
-  state->threadHandle = CreateThread(NULL, 0, &StartThreadWrapper, state, 0, NULL);
+  state->threadHandle = (HANDLE)_beginthreadex(NULL, 0, &StartThreadWrapper, state, 0, NULL);
 }
 }
 
