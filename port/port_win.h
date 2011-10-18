@@ -59,7 +59,9 @@ static const bool kLittleEndian = true;
 
 // 1 is implementation from bgrainger
 // 2 is implementation from main repo with my fix
-#define COND_VAR_IMPL 2
+// 3 is based on condition_variable_win.cc from chrome
+// (http://src.chromium.org/viewvc/chrome/trunk/src/base/synchronization/)
+#define COND_VAR_IMPL 3
 
 #if COND_VAR_IMPL == 1
 // A Mutex represents an exclusive lock.
@@ -182,7 +184,349 @@ class CondVar {
 };
 #endif
 
-#if 0
+#if COND_VAR_IMPL == 3
+
+typedef int64_t int64;
+
+// based on lock_impl_win.cc from chrome
+// ()
+class Mutex {
+ public:
+  Mutex() {
+      // The second parameter is the spin count, for short-held locks it avoid the
+      // contending thread from going to sleep which helps performance greatly.
+      ::InitializeCriticalSectionAndSpinCount(&os_lock_, 2000);
+  }
+
+  ~Mutex(){
+    ::DeleteCriticalSection(&os_lock_);
+  }
+
+  void Lock() {
+    ::EnterCriticalSection(&os_lock_);
+  }
+
+  void Unlock() {
+     ::LeaveCriticalSection(&os_lock_);
+  }
+
+  void AssertHeld() {
+    
+  }
+  void AssertAcquired() {
+  }
+
+private:
+  friend class CondVar;
+  // critical sections are more efficient than mutexes
+  // but they are not recursive and can only be used to synchronize threads within the same process
+  // we use opaque void * to avoid including windows.h in port_win.h
+  CRITICAL_SECTION os_lock_;
+
+  // No copying
+  Mutex(const Mutex&);
+  void operator=(const Mutex&);
+};
+
+// A helper class that acquires the given Lock while the AutoLock is in scope.
+class AutoLock {
+ public:
+  explicit AutoLock(Mutex& lock) : lock_(lock) {
+    lock_.Lock();
+  }
+
+  ~AutoLock() {
+    lock_.AssertAcquired();
+    lock_.Unlock();
+  }
+
+ private:
+  Mutex& lock_;
+  //DISALLOW_COPY_AND_ASSIGN(AutoLock);
+};
+
+// AutoUnlock is a helper that will Release() the |lock| argument in the
+// constructor, and re-Acquire() it in the destructor.
+class AutoUnlock {
+ public:
+  explicit AutoUnlock(Mutex& lock) : lock_(lock) {
+    // We require our caller to have the lock.
+    lock_.AssertAcquired();
+    lock_.Unlock();
+  }
+
+  ~AutoUnlock() {
+    lock_.Lock();
+  }
+
+ private:
+  Mutex& lock_;
+  //DISALLOW_COPY_AND_ASSIGN(AutoUnlock);
+};
+
+class Time {
+ public:
+  static const int64 kMillisecondsPerSecond = 1000;
+  static const int64 kMicrosecondsPerMillisecond = 1000;
+  static const int64 kMicrosecondsPerSecond = kMicrosecondsPerMillisecond *
+                                              kMillisecondsPerSecond;
+  static const int64 kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
+  static const int64 kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
+  static const int64 kMicrosecondsPerDay = kMicrosecondsPerHour * 24;
+  static const int64 kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static const int64 kNanosecondsPerMicrosecond = 1000;
+  static const int64 kNanosecondsPerSecond = kNanosecondsPerMicrosecond *
+                                             kMicrosecondsPerSecond;
+};
+
+class TimeDelta {
+ public:
+  TimeDelta() : delta_(0) {
+  }
+
+  // Converts units of time to TimeDeltas.
+  static TimeDelta FromDays(int64 days);
+  static TimeDelta FromHours(int64 hours);
+  static TimeDelta FromMinutes(int64 minutes);
+  static TimeDelta FromSeconds(int64 secs);
+  static TimeDelta FromMilliseconds(int64 ms);
+  static TimeDelta FromMicroseconds(int64 us);
+
+  // Converts an integer value representing TimeDelta to a class. This is used
+  // when deserializing a |TimeDelta| structure, using a value known to be
+  // compatible. It is not provided as a constructor because the integer type
+  // may be unclear from the perspective of a caller.
+  static TimeDelta FromInternalValue(int64 delta) {
+    return TimeDelta(delta);
+  }
+
+  // Returns the internal numeric value of the TimeDelta object. Please don't
+  // use this and do arithmetic on it, as it is more error prone than using the
+  // provided operators.
+  // For serializing, use FromInternalValue to reconstitute.
+  int64 ToInternalValue() const {
+    return delta_;
+  }
+
+  // Returns the time delta in some unit. The F versions return a floating
+  // point value, the "regular" versions return a rounded-down value.
+  //
+  // InMillisecondsRoundedUp() instead returns an integer that is rounded up
+  // to the next full millisecond.
+  int InDays() const;
+  int InHours() const;
+  int InMinutes() const;
+  double InSecondsF() const;
+  int64 InSeconds() const;
+  double InMillisecondsF() const;
+  int64 InMilliseconds() const;
+  int64 InMillisecondsRoundedUp() const;
+  int64 InMicroseconds() const;
+
+  TimeDelta& operator=(TimeDelta other) {
+    delta_ = other.delta_;
+    return *this;
+  }
+
+  // Computations with other deltas.
+  TimeDelta operator+(TimeDelta other) const {
+    return TimeDelta(delta_ + other.delta_);
+  }
+  TimeDelta operator-(TimeDelta other) const {
+    return TimeDelta(delta_ - other.delta_);
+  }
+
+  TimeDelta& operator+=(TimeDelta other) {
+    delta_ += other.delta_;
+    return *this;
+  }
+  TimeDelta& operator-=(TimeDelta other) {
+    delta_ -= other.delta_;
+    return *this;
+  }
+  TimeDelta operator-() const {
+    return TimeDelta(-delta_);
+  }
+
+  // Computations with ints, note that we only allow multiplicative operations
+  // with ints, and additive operations with other deltas.
+  TimeDelta operator*(int64 a) const {
+    return TimeDelta(delta_ * a);
+  }
+  TimeDelta operator/(int64 a) const {
+    return TimeDelta(delta_ / a);
+  }
+  TimeDelta& operator*=(int64 a) {
+    delta_ *= a;
+    return *this;
+  }
+  TimeDelta& operator/=(int64 a) {
+    delta_ /= a;
+    return *this;
+  }
+  int64 operator/(TimeDelta a) const {
+    return delta_ / a.delta_;
+  }
+
+  // Comparison operators.
+  bool operator==(TimeDelta other) const {
+    return delta_ == other.delta_;
+  }
+  bool operator!=(TimeDelta other) const {
+    return delta_ != other.delta_;
+  }
+  bool operator<(TimeDelta other) const {
+    return delta_ < other.delta_;
+  }
+  bool operator<=(TimeDelta other) const {
+    return delta_ <= other.delta_;
+  }
+  bool operator>(TimeDelta other) const {
+    return delta_ > other.delta_;
+  }
+  bool operator>=(TimeDelta other) const {
+    return delta_ >= other.delta_;
+  }
+
+ private:
+  friend class Time;
+  friend class TimeTicks;
+  friend TimeDelta operator*(int64 a, TimeDelta td);
+
+  // Constructs a delta given the duration in microseconds. This is private
+  // to avoid confusion by callers with an integer constructor. Use
+  // FromSeconds, FromMilliseconds, etc. instead.
+  explicit TimeDelta(int64 delta_us) : delta_(delta_us) {
+  }
+
+  // Delta in microseconds.
+  int64 delta_;
+};
+// Inline the TimeDelta factory methods, for fast TimeDelta construction.
+
+// static
+inline TimeDelta TimeDelta::FromDays(int64 days) {
+  return TimeDelta(days * Time::kMicrosecondsPerDay);
+}
+
+// static
+inline TimeDelta TimeDelta::FromHours(int64 hours) {
+  return TimeDelta(hours * Time::kMicrosecondsPerHour);
+}
+
+// static
+inline TimeDelta TimeDelta::FromMinutes(int64 minutes) {
+  return TimeDelta(minutes * Time::kMicrosecondsPerMinute);
+}
+
+// static
+inline TimeDelta TimeDelta::FromSeconds(int64 secs) {
+  return TimeDelta(secs * Time::kMicrosecondsPerSecond);
+}
+
+// static
+inline TimeDelta TimeDelta::FromMilliseconds(int64 ms) {
+  return TimeDelta(ms * Time::kMicrosecondsPerMillisecond);
+}
+
+// static
+inline TimeDelta TimeDelta::FromMicroseconds(int64 us) {
+  return TimeDelta(us);
+}
+
+inline TimeDelta operator*(int64 a, TimeDelta td) {
+  return TimeDelta(a * td.delta_);
+}
+
+// based on condition_variable_win.cc from chrome
+// (http://src.chromium.org/viewvc/chrome/trunk/src/base/synchronization/condition_variable_win.cc?revision=70363&view=markup)
+class CondVar {
+ public:
+  explicit CondVar(Mutex* user_lock);
+  ~CondVar();
+
+  void Wait() {
+      // Default to "wait forever" timing, which means have to get a Signal()
+      // or Broadcast() to come out of this wait state.
+      TimedWait(TimeDelta::FromMilliseconds(INFINITE));
+  }
+
+  void TimedWait(const TimeDelta& max_time);
+  void Signal();
+  void SignalAll();
+ private:
+   // Define Event class that is used to form circularly linked lists.
+   // The list container is an element with NULL as its handle_ value.
+   // The actual list elements have a non-zero handle_ value.
+   // All calls to methods MUST be done under protection of a lock so that links
+   // can be validated.  Without the lock, some links might asynchronously
+   // change, and the assertions would fail (as would list change operations).
+   class Event {
+    public:
+     // Default constructor with no arguments creates a list container.
+     Event();
+     ~Event();
+   
+     // InitListElement transitions an instance from a container, to an element.
+     void InitListElement();
+   
+     // Methods for use on lists.
+     bool IsEmpty() const;
+     void PushBack(Event* other);
+     Event* PopFront();
+     Event* PopBack();
+   
+     // Methods for use on list elements.
+     // Accessor method.
+     HANDLE handle() const;
+     // Pull an element from a list (if it's in one).
+     Event* Extract();
+   
+     // Method for use on a list element or on a list.
+     bool IsSingleton() const;
+   
+    private:
+     // Provide pre/post conditions to validate correct manipulations.
+     bool ValidateAsDistinct(Event* other) const;
+     bool ValidateAsItem() const;
+     bool ValidateAsList() const;
+     bool ValidateLinks() const;
+   
+     HANDLE handle_;
+     Event* next_;
+     Event* prev_;
+     //DISALLOW_COPY_AND_ASSIGN(Event);
+   };
+   
+   // Note that RUNNING is an unlikely number to have in RAM by accident.
+   // This helps with defensive destructor coding in the face of user error.
+   enum RunState { SHUTDOWN = 0, RUNNING = 64213 };
+   
+   // Internal implementation methods supporting Wait().
+   Event* GetEventForWaiting();
+   void RecycleEvent(Event* used_event);
+   
+   RunState run_state_;
+   
+   // Private critical section for access to member data.
+   Mutex internal_lock_;
+   
+   // Lock that is acquired before calling Wait().
+   Mutex& user_lock_;
+   
+   // Events that threads are blocked on.
+   Event waiting_list_;
+   
+   // Free list for old events.
+   Event recycling_list_;
+   int recycling_list_size_;
+   
+   // The number of allocated, but not yet deleted events.
+   int allocation_counter_;
+};
+#endif
+
+#if 1
 // Storage for a lock-free pointer
 class AtomicPointer {
  private:
@@ -250,8 +594,10 @@ inline bool GetHeapProfile(void (*func)(void*, const char*, int), void* arg) {
 }
 }
 
+#if 0
 #define COMPILER_MSVC 1
 #define ARCH_CPU_X86_FAMILY 1
 #include "atomic_pointer.h"
+#endif
 
 #endif  // STORAGE_LEVELDB_PORT_PORT_WIN_H_
