@@ -135,7 +135,7 @@ def extract_sumatra_version(file_path):
   ver = re.findall(r'CURR_VERSION (\d+(?:\.\d+)*)', content)[0]
   return ver
 
-def zip_file(dst_zip_file, src, src_name=None, compress=True, append=False):
+def zip_file_add(dst_zip_file, src, src_name=None, compress=True, append=False):
   mode = "w"
   if append: mode = "a"
   if compress:

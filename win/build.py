@@ -15,7 +15,7 @@ import re
 
 from util import log, run_cmd_throw, test_for_flag, s3UploadFilePublic, import_boto
 from util import s3UploadDataPublic, ensure_s3_doesnt_exist, ensure_path_exists
-from util import zip_file
+from util import zip_file_add
 
 # This is version that LevelDB reports. It's in
 # http://code.google.com/p/leveldb/source/browse/include/leveldb/db.h
@@ -33,9 +33,9 @@ gReleaseNotes = [
 ]
 
 args = sys.argv[1:]
-test   = test_for_flag(args, "-test")
-upload = test_for_flag(args, "-upload")
-upload = upload or test_for_flag(args, "upload")
+upload = test_for_flag(args, "-upload") or test_for_flag(args, "upload")
+# we force test if we're uploading
+test   = test_for_flag(args, "-test") or test_for_flag(args, "test") or upload
 
 def usage():
   print("build.py [-test][-upload]")
@@ -46,10 +46,12 @@ s3_dir = "software/leveldb/rel"
 def s3_zip_name():
   return "%s/LevelDB-%s-rev-%d.zip" % (s3_dir, gVersion, gRevision)
 
+def zip_name():
+  return "LevelDB-%s-rev-%d.zip" % (gVersion, gRevision)
+
 dll_file = "libleveldb.dll"
 dbbench_exe = "db_bench.exe"
-test_exes = ["corruption_test.exe", "arena_test.exe", "coding_test.exe", "env_test.exe", "memenv_test.exe", "version_edit_test.exe", "c_test.exe", "skiplist_test.exe", "version_set_test.exe", "cache_test.exe", "crc32c_test.exe", "dbformat_test.exe", "log_test.exe", "write_batch_test.exe", "table_test.exe"]
-#, "filename_test.exe", "db_test.exe"
+test_exes = ["filename_test.exe", "db_test.exe", "corruption_test.exe", "arena_test.exe", "coding_test.exe", "env_test.exe", "memenv_test.exe", "version_edit_test.exe", "c_test.exe", "skiplist_test.exe", "version_set_test.exe", "cache_test.exe", "crc32c_test.exe", "dbformat_test.exe", "log_test.exe", "write_batch_test.exe", "table_test.exe"]
 
 build_files = test_exes + [dll_file] + [dbbench_exe]
 
@@ -74,6 +76,38 @@ def run_tests(build_dir):
   print("Running %s" % p)
   run_cmd_throw(p)
 
+def build_and_test(build_dir, target):
+  #shutil.rmtree(build_dir, ignore_errors=True)
+  run_cmd_throw("cmd.exe", "/c", "build.bat", target)
+  verify_build_ok(build_dir)
+  if test: run_tests(build_dir)
+
+def build_zip():
+  zip_file_add(zip_name(), "zip-readme.txt", "readme.txt", compress=True, append=True)
+
+  include_path = os.path.join("..", "include", "leveldb")
+  include_files = os.listdir(include_path)
+  for f in include_files:
+    p = os.path.join(include_path, f)
+    zippath = "include/leveldb/" + f
+    zip_file_add(zip_name(), p, zippath, compress=True, append=True)
+
+  dll_files = ["libleveldb.dll", "libleveldb.lib", "libleveldb.pdb"]
+  dll_dir = "rel"
+  zip_dir = "32bit"
+  for f in dll_files:
+    p = os.path.join(dll_dir, f)
+    zippath = zip_dir + "/" + f
+    zip_file_add(zip_name(), p, zippath, compress=True, append=True)
+
+  dll_dir = "rel64bit"
+  zip_dir = "64bit"
+  for f in dll_files:
+    p = os.path.join(dll_dir, f)
+    zippath = zip_dir + "/" + f
+    zip_file_add(zip_name(), p, zippath, compress=True, append=True)
+
+
 def main():
   if len(args) != 0:
     usage()
@@ -81,18 +115,12 @@ def main():
     import_boto()
     ensure_s3_doesnt_exist(s3_zip_name())
   mydir = os.path.dirname(os.path.realpath(__file__))
+  print(mydir)
   os.chdir(mydir)
 
-  build_dir = "rel"
-  #shutil.rmtree(build_dir, ignore_errors=True)
-  run_cmd_throw("cmd.exe", "/c", "build.bat", "Just32rel")
-  verify_build_ok(build_dir)
-  if test: run_tests(build_dir)
-
-  build_dir = "rel64bit"
-  #shutil.rmtree(build_dir, ignore_errors=True)
-  #run_cmd_throw("start", "build.bat", "Just64rel")
-  #if test: run_tests(build_dir)
+  build_and_test("rel", "Just32rel")
+  build_and_test("rel64bit", "Just64rel")
+  build_zip()
 
 if __name__ == "__main__":
   main()
