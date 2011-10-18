@@ -41,12 +41,12 @@ static Status IOError(const std::string& context, DWORD err = (DWORD)-1) {
 
 class WinSequentialFile: public SequentialFile {
 private:
-  std::string filename_;
+  std::string fname_;
   HANDLE file_;
 
 public:
   WinSequentialFile(const std::string& fname, HANDLE f)
-      : filename_(fname), file_(f) { }
+      : fname_(fname), file_(f) { }
   virtual ~WinSequentialFile() { CloseHandle(file_); }
 
   virtual Status Read(size_t n, Slice* result, char* scratch) {
@@ -57,7 +57,7 @@ public:
     if (!ok) {
         // We leave status as ok if we hit the end of the file
         if (GetLastError() != ERROR_HANDLE_EOF) {
-            return IOError(filename_);
+            return IOError(fname_);
         }
     }
     return Status::OK();
@@ -68,42 +68,30 @@ public:
     pos.QuadPart = n;
     DWORD res = SetFilePointerEx(file_, pos, NULL, FILE_CURRENT);
     if (res == 0)
-        return IOError(filename_);
+        return IOError(fname_);
     return Status::OK();
   }
 };
 
 class WinRandomAccessFile: public RandomAccessFile {
  private:
-  std::string filename_;
+  std::string fname_;
   HANDLE file_;
 
  public:
   WinRandomAccessFile(const std::string& fname, HANDLE file)
-      : filename_(fname), file_(file) { }
+      : fname_(fname), file_(file) { }
   virtual ~WinRandomAccessFile() { CloseHandle(file_); }
 
   virtual Status Read(uint64_t offset, size_t n, Slice* result,
                       char* scratch) const {
-    LARGE_INTEGER pos;
-    pos.QuadPart = offset;
-    DWORD res = SetFilePointerEx(file_, pos, NULL, FILE_BEGIN);
-    if (res == 0) {
-        *result = Slice(scratch, 0);
-        return IOError(filename_);
-    }
-
-    DWORD n2 = n;
-    DWORD r = 0;
-    BOOL ok = ReadFile(file_, (void*)scratch, n2, &r, NULL);
-    *result = Slice(scratch, r);
-    if (!ok) {
-        // We leave status as ok if we hit the end of the file
-        if (GetLastError() != ERROR_HANDLE_EOF) {
-            return IOError(filename_);
-        }
-    }
-    return Status::OK();
+    OVERLAPPED overlapped = { 0 };
+    overlapped.Offset = static_cast<DWORD>(offset);
+    overlapped.OffsetHigh = static_cast<DWORD>(offset >> 32);
+    DWORD bytes_read = 0;
+    BOOL success = ReadFile(file_, scratch, n, &bytes_read, &overlapped);
+    *result = Slice(scratch, bytes_read);
+    return success != FALSE ? Status::OK() : Status::IOError(fname_);
   }
 };
 
@@ -393,25 +381,6 @@ class WinEnv : public Env {
     return (ERROR_ALREADY_EXISTS == GetLastError());
   }
 
-#if 0
-  bool CreateDirIfNotExists(const WCHAR *dir) {
-    int n = 0;
-    while (n < 8)
-    {
-      BOOL ok = CreateDirectoryW(dir, NULL);
-      if (ok)
-        return true;
-      if (ERROR_ALREADY_EXISTS == GetLastError())
-        return true;
-      if (ERROR_DELETE_PENDING != GetLastError())
-        return false;
-      Sleep(1);
-      n++;
-    }
-    return false;
-  }
-#endif
-
   bool DirExists(const WCHAR *dir) {
     WIN32_FILE_ATTRIBUTE_DATA   file_info;
     BOOL res = GetFileAttributesExW(dir, GetFileExInfoStandard, &file_info);
@@ -597,21 +566,19 @@ class WinEnv : public Env {
   }
 
   virtual uint64_t NowMicros() {
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    ULARGE_INTEGER uli;
-    uli.LowPart = ft.dwLowDateTime; // could use memcpy here!
-    uli.HighPart = ft.dwHighDateTime;
-    uint64_t micros = uli.QuadPart / 10;
-    return micros;
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    return count.QuadPart * 1000000i64 / freq_.QuadPart;
   }
 
   virtual void SleepForMicroseconds(int micros) {
-    // TODO: is there a higher precision call?
-    ::Sleep(micros / 1000);
+     // round up to the next millisecond
+    Sleep((micros + 999) / 1000);
   }
 
 private:
+  LARGE_INTEGER freq_;
+
   // BGThread() is the body of the background thread
   void BGThread();
 
@@ -633,6 +600,7 @@ private:
 
 
 WinEnv::WinEnv() : bgthread_(NULL), bgsignal_(&mu_) {
+  QueryPerformanceFrequency(&freq_);
 }
 
 void WinEnv::Schedule(void (*function)(void*), void* arg) {
