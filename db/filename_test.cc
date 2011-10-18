@@ -79,37 +79,37 @@ TEST(FileNameTest, Construction) {
   std::string fname;
 
   fname = CurrentFileName("foo");
-  ASSERT_EQ("foo/", std::string(fname.data(), 4));
+  ASSERT_EQ("foo" + path_sep_str, std::string(fname.data(), 4));
   ASSERT_TRUE(ParseFileName(fname.c_str() + 4, &number, &type));
   ASSERT_EQ(0, number);
   ASSERT_EQ(kCurrentFile, type);
 
   fname = LockFileName("foo");
-  ASSERT_EQ("foo/", std::string(fname.data(), 4));
+  ASSERT_EQ("foo" + path_sep_str, std::string(fname.data(), 4));
   ASSERT_TRUE(ParseFileName(fname.c_str() + 4, &number, &type));
   ASSERT_EQ(0, number);
   ASSERT_EQ(kDBLockFile, type);
 
   fname = LogFileName("foo", 192);
-  ASSERT_EQ("foo/", std::string(fname.data(), 4));
+  ASSERT_EQ("foo" + path_sep_str, std::string(fname.data(), 4));
   ASSERT_TRUE(ParseFileName(fname.c_str() + 4, &number, &type));
   ASSERT_EQ(192, number);
   ASSERT_EQ(kLogFile, type);
 
   fname = TableFileName("bar", 200);
-  ASSERT_EQ("bar/", std::string(fname.data(), 4));
+  ASSERT_EQ("bar" + path_sep_str, std::string(fname.data(), 4));
   ASSERT_TRUE(ParseFileName(fname.c_str() + 4, &number, &type));
   ASSERT_EQ(200, number);
   ASSERT_EQ(kTableFile, type);
 
   fname = DescriptorFileName("bar", 100);
-  ASSERT_EQ("bar/", std::string(fname.data(), 4));
+  ASSERT_EQ("bar" + path_sep_str, std::string(fname.data(), 4));
   ASSERT_TRUE(ParseFileName(fname.c_str() + 4, &number, &type));
   ASSERT_EQ(100, number);
   ASSERT_EQ(kDescriptorFile, type);
 
   fname = TempFileName("tmp", 999);
-  ASSERT_EQ("tmp/", std::string(fname.data(), 4));
+  ASSERT_EQ("tmp" + path_sep_str, std::string(fname.data(), 4));
   ASSERT_TRUE(ParseFileName(fname.c_str() + 4, &number, &type));
   ASSERT_EQ(999, number);
   ASSERT_EQ(kTempFile, type);

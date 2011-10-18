@@ -11,9 +11,9 @@
 
 namespace leveldb {
 #if defined(LEVELDB_PLATFORM_WINDOWS)
-static const std::string path_sep_str = "\\";
+const std::string path_sep_str = "\\";
 #else
-static  const std::string path_sep_str = "/";
+const std::string path_sep_str = "/";
 #endif
 
 static bool StringEndsWith(const std::string s, const std::string end)

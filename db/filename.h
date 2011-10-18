@@ -27,6 +27,8 @@ enum FileType {
   kInfoLogFile  // Either the current one, or an old one
 };
 
+extern const std::string path_sep_str;
+
 // Return a path combining base directory and a file or directory name
 extern std::string PathJoin(const std::string dir, const std::string rest);
 
