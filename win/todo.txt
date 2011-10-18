@@ -1,6 +1,7 @@
 * python scripts that builds everything, runs all the tests and uploads results to s3
 * write web page
 * add snappy
+* test app exercising dll APIs in the .zip file
 <-- make a release
 * show proc in db_bench for windows
 <-- make a release

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-Build a release of LevelDB binaries.
+Build LevelDB dlls, build a zip and upload to s3.
 Command line arguments:
  -test   : run all tests
  -upload : upload the zip 
@@ -12,6 +12,7 @@ import shutil
 import sys
 import time
 import re
+import json
 
 from util import log, run_cmd_throw, test_for_flag, s3UploadFilePublic, import_boto
 from util import s3UploadDataPublic, ensure_s3_doesnt_exist, ensure_path_exists
@@ -26,10 +27,18 @@ gVersion = "1.2"
 # update kMinorVersion after changing code) or making changes to my port. 
 gRevision = 1
 
+gVer = "%s rev %d" % (gVersion, gRevision)
+
+# The format of release notes is:
+# - a list for each version
+# - first element of the list is version
+# - second element is a date on which the release was made
+# - rest are html fragments that will be displayed as <li> items on a html page
 gReleaseNotes = [
-  ["1.2 rev 1",
+  ["1.2 rev 1", "2011-??-??",
   "first release",
-  "based on http://code.google.com/p/leveldb/source/detail?r=299ccedfeca1fb3497978c288e76008a5c08e899"]
+  "based on <a href='http://code.google.com/p/leveldb/source/detail?r=299ccedfeca1fb3497978c288e76008a5c08e899'>http://code.google.com/p/leveldb/source/detail?r=299ccedfeca1fb3497978c288e76008a5c08e899</a>",
+  "<a href='http://kjkpub.s3.amazonaws.com/software/leveldb/rel/LevelDB-1.2-rev-1.zip'>LevelDB-1.2-rev-1.zip</a>"]
 ]
 
 args = sys.argv[1:]
@@ -107,6 +116,17 @@ def build_zip():
     zippath = zip_dir + "/" + f
     zip_file_add(zip_name(), p, zippath, compress=True, append=True)
 
+def build_s3_js():
+  s  = 'var latestVer = "%s";\n' % gVer
+  s += 'var builtOn = "%s";\n' % time.strftime("%Y-%m-%d")
+  s += 'var zipUrl = "http://kjkpub.s3.amazonaws.com/%s";\n' % s3_zip_name()
+  s += 'var relNotes = %s;\n' % json.dumps(gReleaseNotes)
+  return s
+
+def upload_to_s3():
+  s3UploadFilePublic(zip_name(), s3_zip_name())
+  jstxt = build_s3_js()
+  s3UploadDataPublic(jstxt, "sumatrapdf/sumatralatest.js")
 
 def main():
   if len(args) != 0:
@@ -121,6 +141,7 @@ def main():
   build_and_test("rel", "Just32rel")
   build_and_test("rel64bit", "Just64rel")
   build_zip()
+  if upload: upload_to_s3()
 
 if __name__ == "__main__":
   main()
