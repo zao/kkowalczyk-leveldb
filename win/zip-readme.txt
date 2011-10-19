@@ -3,7 +3,7 @@ This is a binary distribution of LevelDB dlls for Windows.
 Directory "32bit" contains 32-bit version of the dll and directory
 "64bit" - 64-bit verision of the dll.
 
-The both contain:
+They both contain:
 * libleveldb.dll and libleveldb.lib - dll and import library for the
   linker
 * libleveldb.pdb - pdb file for debugging
