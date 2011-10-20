@@ -29,195 +29,34 @@
 //
 
 #include "port/port_win.h"
-#include <stack>
+#include "util/mutexlock.h"
 
+#include <stack>
 #include <cassert>
 
 namespace leveldb {
 namespace port {
 
-#if COND_VAR_IMPL == 1
-Mutex::Mutex() :
-  mutex_(::CreateMutex(NULL, FALSE, NULL)) {
-  assert(mutex_);
-}
-
-Mutex::~Mutex() {
-  assert(mutex_);
-  ::CloseHandle(mutex_);
-}
-
-void Mutex::Lock() {
-  assert(mutex_);
-  ::WaitForSingleObject(mutex_, INFINITE);
-}
-
-void Mutex::Unlock() {
-  assert(mutex_);
-  ::ReleaseMutex(mutex_);
-}
-
-void Mutex::AssertHeld() {
-  assert(mutex_);
-  assert(1);
-}
-
-CondVar::CondVar(Mutex* mu) :
-    waiting_(0), 
-    mu_(mu), 
-    sema_(::CreateSemaphore(NULL, 0, 0x7fffffff, NULL)), 
-    event_(::CreateEvent(NULL, FALSE, FALSE, NULL)),
-    broadcasted_(false){
-  assert(mu_);
-}
-
-CondVar::~CondVar() {
-  ::CloseHandle(sema_);
-  ::CloseHandle(event_);
-}
-
-void CondVar::Wait() {
-  wait_mtx_.Lock();
-  ++waiting_;
-  assert(waiting_ > 0);
-  wait_mtx_.Unlock();
-
-  ::SignalObjectAndWait(mu_->mutex_, sema_, INFINITE, FALSE);
-
-  wait_mtx_.Lock();
-  bool last = broadcasted_ && (--waiting_ == 0);
-  assert(waiting_ >= 0);
-  wait_mtx_.Unlock();
-
-  // we leave this function with the mutex held
-  if (last)
-    ::SignalObjectAndWait(event_, mu_->mutex_, INFINITE, FALSE);
-  else
-    ::WaitForSingleObject(mu_->mutex_, INFINITE);
-}
-
-void CondVar::Signal() {
-  wait_mtx_.Lock();
-  bool waiters = waiting_ > 0;
-  wait_mtx_.Unlock();
-
-  if (waiters)
-    ::ReleaseSemaphore(sema_, 1, 0);
-}
-
-void CondVar::SignalAll() {
-  wait_mtx_.Lock();
-
-  broadcasted_ = (waiting_ > 0);
-
-  if (broadcasted_)
-  {
-      // release all
-    ::ReleaseSemaphore(sema_, waiting_, 0);
-    wait_mtx_.Unlock();
-    ::WaitForSingleObject(event_, INFINITE);
-    broadcasted_ = false;
+// MutexUnlock is a helper that will Release() the |lock| argument in the
+// constructor, and re-Acquire() it in the destructor.
+class MutexUnlock {
+ public:
+  explicit MutexUnlock(Mutex *mu) : mu_(mu) {
+    // We require our caller to have the lock.
+    mu_->AssertHeld();
+    mu_->Unlock();
   }
-  else
-  {
-    wait_mtx_.Unlock();
+
+  ~MutexUnlock() {
+    mu_->Lock();
   }
-}
-#endif
 
-#if COND_VAR_IMPL == 2
-CondVar::CondVar(Mutex* mu) :
-  waiting_(0), 
-  mu_(mu), 
-  sem1_(::CreateSemaphore(NULL, 0, 10000, NULL)), 
-  sem2_(::CreateSemaphore(NULL, 0, 10000, NULL)) {
-  assert(mu_);
-}
-
-CondVar::~CondVar() {
-  ::CloseHandle(sem1_);
-  ::CloseHandle(sem2_);
-}
-
-void CondVar::Wait() {
-  mu_->AssertHeld();
-
-  wait_mtx_.Lock();
-  ++waiting_;
-  wait_mtx_.Unlock();
-
-  mu_->Unlock();
-
-  // initiate handshake
-  ::WaitForSingleObject(sem1_, INFINITE);
-  ::ReleaseSemaphore(sem2_, 1, NULL);
-  mu_->Lock();
-}
-
-void CondVar::Signal() {
-  wait_mtx_.Lock();
-  if (waiting_ > 0) {
-    --waiting_;
-
-    // finalize handshake
-    ::ReleaseSemaphore(sem1_, 1, NULL);
-    ::WaitForSingleObject(sem2_, INFINITE);
-  }
-  wait_mtx_.Unlock();
-}
-
-void CondVar::SignalAll() {
-  wait_mtx_.Lock();
-
-  while (waiting_ > 0) {
-    --waiting_;
-
-    // finalize handshake
-    ::ReleaseSemaphore(sem1_, 1, NULL);
-    ::WaitForSingleObject(sem2_, INFINITE);
-  }
-  wait_mtx_.Unlock();
-}
-#endif
-
-#if COND_VAR_IMPL == 3
-
-int TimeDelta::InDays() const {
-  return static_cast<int>(delta_ / Time::kMicrosecondsPerDay);
-}
-
-int TimeDelta::InHours() const {
-  return static_cast<int>(delta_ / Time::kMicrosecondsPerHour);
-}
-
-int TimeDelta::InMinutes() const {
-  return static_cast<int>(delta_ / Time::kMicrosecondsPerMinute);
-}
-
-double TimeDelta::InSecondsF() const {
-  return static_cast<double>(delta_) / Time::kMicrosecondsPerSecond;
-}
-
-int64 TimeDelta::InSeconds() const {
-  return delta_ / Time::kMicrosecondsPerSecond;
-}
-
-double TimeDelta::InMillisecondsF() const {
-  return static_cast<double>(delta_) / Time::kMicrosecondsPerMillisecond;
-}
-
-int64 TimeDelta::InMilliseconds() const {
-  return delta_ / Time::kMicrosecondsPerMillisecond;
-}
-
-int64 TimeDelta::InMillisecondsRoundedUp() const {
-  return (delta_ + Time::kMicrosecondsPerMillisecond - 1) /
-      Time::kMicrosecondsPerMillisecond;
-}
-
-int64 TimeDelta::InMicroseconds() const {
-  return delta_;
-}
+ private:
+  Mutex *const mu_;
+  // No copying allowed
+  MutexUnlock(const MutexUnlock&);
+  void operator=(const MutexUnlock&);
+};
 
 CondVar::CondVar(Mutex* user_lock)
     : user_lock_(*user_lock),
@@ -227,7 +66,7 @@ CondVar::CondVar(Mutex* user_lock)
 }
 
 CondVar::~CondVar() {
-  AutoLock auto_lock(internal_lock_);
+  MutexLock auto_lock(&internal_lock_);
   run_state_ = SHUTDOWN;  // Prevent any more waiting.
   if (recycling_list_size_ != allocation_counter_) {  // Rare shutdown problem.
      // There are threads of execution still in this->TimedWait() and yet the
@@ -238,29 +77,29 @@ CondVar::~CondVar() {
      // waiting thread(s) one last chance to exit gracefully (prior to our
      // destruction).
      // Note: waiting_list_ *might* be empty, but recycling is still pending.
-     AutoUnlock auto_unlock(internal_lock_);
+     MutexUnlock auto_unlock(&internal_lock_);
      SignalAll();  // Make sure all waiting threads have been signaled.
      Sleep(10);  // Give threads a chance to grab internal_lock_.
      // All contained threads should be blocked on user_lock_ by now :-).
    }  // Reacquire internal_lock_.
 }
 
-void CondVar::TimedWait(const TimeDelta& max_time) {
+void CondVar::TimedWait(const int64_t max_time_in_ms) {
   Event* waiting_event;
   HANDLE handle;
   {
-    AutoLock auto_lock(internal_lock_);
+    MutexLock auto_lock(&internal_lock_);
     if (RUNNING != run_state_) return;  // Destruction in progress.
     waiting_event = GetEventForWaiting();
     handle = waiting_event->handle();
-    //DCHECK(handle);
+    assert(handle);
   }  // Release internal_lock.
 
   {
-    AutoUnlock unlock(user_lock_);  // Release caller's lock
-    WaitForSingleObject(handle, static_cast<DWORD>(max_time.InMilliseconds()));
+    MutexUnlock unlock(&user_lock_);  // Release caller's lock
+    WaitForSingleObject(handle, static_cast<DWORD>(max_time_in_ms));
     // Minimize spurious signal creation window by recycling asap.
-    AutoLock auto_lock(internal_lock_);
+    MutexLock auto_lock(&internal_lock_);
     RecycleEvent(waiting_event);
     // Release internal_lock_
   }  // Reacquire callers lock to depth at entry.
@@ -271,7 +110,7 @@ void CondVar::TimedWait(const TimeDelta& max_time) {
 void CondVar::SignalAll() {
   std::stack<HANDLE> handles;  // See FAQ-question-10.
   {
-    AutoLock auto_lock(internal_lock_);
+    MutexLock auto_lock(&internal_lock_);
     if (waiting_list_.IsEmpty())
       return;
     while (!waiting_list_.IsEmpty())
@@ -291,7 +130,7 @@ void CondVar::SignalAll() {
 void CondVar::Signal() {
   HANDLE handle;
   {
-    AutoLock auto_lock(internal_lock_);
+    MutexLock auto_lock(&internal_lock_);
     if (waiting_list_.IsEmpty())
       return;  // No one to signal.
     // Only performance option should be used.
@@ -309,11 +148,11 @@ CondVar::Event* CondVar::GetEventForWaiting() {
   // We hold internal_lock, courtesy of Wait().
   Event* cv_event;
   if (0 == recycling_list_size_) {
-    //DCHECK(recycling_list_.IsEmpty());
+    assert(recycling_list_.IsEmpty());
     cv_event = new Event();
     cv_event->InitListElement();
     allocation_counter_++;
-    //CHECK(cv_event->handle());
+    assert(cv_event->handle());
   } else {
     cv_event = recycling_list_.PopFront();
     recycling_list_size_--;
@@ -330,7 +169,7 @@ CondVar::Event* CondVar::GetEventForWaiting() {
 void CondVar::RecycleEvent(Event* used_event) {
   // We hold internal_lock, courtesy of Wait().
   // If the cv_event timed out, then it is necessary to remove it from
-  // waiting_list_.  If it was selected by Broadcast() or Signal(), then it is
+  // waiting_list_.  If it was selected by SignalAll() or Signal(), then it is
   // already gone.
   used_event->Extract();  // Possibly redundant
   recycling_list_.PushBack(used_event);
@@ -374,65 +213,65 @@ CondVar::Event::~Event() {
     // This is the list holder
     while (!IsEmpty()) {
       Event* cv_event = PopFront();
-      //DCHECK(cv_event->ValidateAsItem());
+      assert(cv_event->ValidateAsItem());
       delete cv_event;
     }
   }
-  //DCHECK(IsSingleton());
+  assert(IsSingleton());
   if (0 != handle_) {
     int ret_val = CloseHandle(handle_);
-    //DCHECK(ret_val);
+    assert(ret_val);
   }
 }
 
 // Change a container instance permanently into an element of a list.
 void CondVar::Event::InitListElement() {
-  //DCHECK(!handle_);
+  assert(!handle_);
   handle_ = CreateEvent(NULL, false, false, NULL);
-  //CHECK(handle_);
+  assert(handle_);
 }
 
 // Methods for use on lists.
 bool CondVar::Event::IsEmpty() const {
-  //DCHECK(ValidateAsList());
+  assert(ValidateAsList());
   return IsSingleton();
 }
 
 void CondVar::Event::PushBack(Event* other) {
-  //DCHECK(ValidateAsList());
-  //DCHECK(other->ValidateAsItem());
-  //DCHECK(other->IsSingleton());
+  assert(ValidateAsList());
+  assert(other->ValidateAsItem());
+  assert(other->IsSingleton());
   // Prepare other for insertion.
   other->prev_ = prev_;
   other->next_ = this;
   // Cut into list.
   prev_->next_ = other;
   prev_ = other;
-  //DCHECK(ValidateAsDistinct(other));
+  assert(ValidateAsDistinct(other));
 }
 
 CondVar::Event* CondVar::Event::PopFront() {
-  //DCHECK(ValidateAsList());
-  //DCHECK(!IsSingleton());
+  assert(ValidateAsList());
+  assert(!IsSingleton());
   return next_->Extract();
 }
 
 CondVar::Event* CondVar::Event::PopBack() {
-  //DCHECK(ValidateAsList());
-  //DCHECK(!IsSingleton());
+  assert(ValidateAsList());
+  assert(!IsSingleton());
   return prev_->Extract();
 }
 
 // Methods for use on list elements.
 // Accessor method.
 HANDLE CondVar::Event::handle() const {
-  //DCHECK(ValidateAsItem());
+  assert(ValidateAsItem());
   return handle_;
 }
 
 // Pull an element from a list (if it's in one).
 CondVar::Event* CondVar::Event::Extract() {
-  //DCHECK(ValidateAsItem());
+  assert(ValidateAsItem());
   if (!IsSingleton()) {
     // Stitch neighbors together.
     next_->prev_ = prev_;
@@ -440,13 +279,13 @@ CondVar::Event* CondVar::Event::Extract() {
     // Make extractee into a singleton.
     prev_ = next_ = this;
   }
-  //DCHECK(IsSingleton());
+  assert(IsSingleton());
   return this;
 }
 
 // Method for use on a list element or on a list.
 bool CondVar::Event::IsSingleton() const {
-  //DCHECK(ValidateLinks());
+  assert(ValidateLinks());
   return next_ == this;
 }
 
@@ -481,15 +320,15 @@ http://www.cs.wustl.edu/~schmidt/win32-cv-1.html It includes
 discussions of numerous flawed strategies for implementing this
 functionality.  I'm not convinced that even the final proposed
 implementation has semantics that are as nice as this implementation
-(especially with regard to Broadcast() and the impact on threads that
-try to Wait() after a Broadcast() has been called, but before all the
+(especially with regard to SignalAll() and the impact on threads that
+try to Wait() after a SignalAll() has been called, but before all the
 original waiting threads have been signaled).
 
 2) Why can't you use a single wait_event for all threads that call
 Wait()?  See FAQ-question-1, or consider the following: If a single
 event were used, then numerous threads calling Wait() could release
 their cs locks, and be preempted just before calling
-WaitForSingleObject().  If a call to Broadcast() was then presented on
+WaitForSingleObject().  If a call to SignalAll() was then presented on
 a second thread, it would be impossible to actually signal all
 waiting(?) threads.  Some number of SetEvent() calls *could* be made,
 but there could be no guarantee that those led to to more than one
@@ -502,7 +341,7 @@ to receive spurious signals.
 
 3) How does this implementation cause spurious signal events?  The
 cause in this implementation involves a race between a signal via
-time-out and a signal via Signal() or Broadcast().  The series of
+time-out and a signal via Signal() or SignalAll().  The series of
 actions leading to this are:
 
 a) Timer fires, and a waiting thread exits the line of code:
@@ -513,7 +352,7 @@ b) That thread (in (a)) is randomly pre-empted after the above line,
 leaving the waiting_event reset (unsignaled) and still in the
 waiting_list_.
 
-c) A call to Signal() (or Broadcast()) on a second thread proceeds, and
+c) A call to Signal() (or SignalAll()) on a second thread proceeds, and
 selects the waiting cv_event (identified in step (b)) as the event to revive
 via a call to SetEvent().
 
@@ -530,7 +369,7 @@ be signaled (spuriously).
 the spurious events are very rare.  They can only (I think) appear
 when the race described in FAQ-question-3 takes place.  This should be
 very rare.  Most(?)  uses will involve only timer expiration, or only
-Signal/Broadcast() actions.  When both are used, it will be rare that
+Signal/SignalAll() actions.  When both are used, it will be rare that
 the race will appear, and it would require MANY Wait() and signaling
 activities.  If this implementation did not recycle events, then it
 would have to create and destroy events for every call to Wait().
@@ -555,13 +394,13 @@ allocate the wait_event for use in a given call to Wait().  This
 allocation takes place before the caller's lock is released (and
 actually before our internal_lock_ is released).  That allocation is
 the defining moment when "the wait state has been entered," as that
-thread *can* now be signaled by a call to Broadcast() or Signal().
+thread *can* now be signaled by a call to SignalAll() or Signal().
 Hence we actually "commit to wait" before releasing the lock, making
 the pair effectively atomic.
 
 8) Why do you need to lock your data structures during waiting, as the
 caller is already in possession of a lock?  We need to Acquire() and
-Release() our internal lock during Signal() and Broadcast().  If we tried
+Release() our internal lock during Signal() and SignalAll().  If we tried
 to use a callers lock for this purpose, we might conflict with their
 external use of the lock.  For example, the caller may use to consistently
 hold a lock on one thread while calling Signal() on another, and that would
@@ -575,7 +414,7 @@ in each Wait() call).  One of the constructors now takes a specific
 lock as an argument, and a there are corresponding Wait() calls that
 don't specify a lock now.  It turns that the resulting implmentation
 can't be made more efficient, as the internal lock needs to be used by
-Signal() and Broadcast(), to access internal data structures.  As a
+Signal() and SignalAll(), to access internal data structures.  As a
 result, I was not able to utilize the user supplied lock (which is
 being used by the user elsewhere presumably) to protect the private
 member access.
@@ -586,13 +425,13 @@ lock acquired, and the first one released, and hence a deadlock (due
 to critical section problems) is impossible as a consequence of our
 lock.
 
-10) When doing a Broadcast(), why did you copy all the events into
+10) When doing a SignalAll(), why did you copy all the events into
 an STL queue, rather than making a linked-loop, and iterating over it?
-The iterating during Broadcast() is done so outside the protection
+The iterating during SignalAll() is done so outside the protection
 of the internal lock. As a result, other threads, such as the thread
 wherein a related event is waiting, could asynchronously manipulate
 the links around a cv_event.  As a result, the link structure cannot
-be used outside a lock.  Broadcast() could iterate over waiting
+be used outside a lock.  SignalAll() could iterate over waiting
 events by cycling in-and-out of the protection of the internal_lock,
 but that appears more expensive than copying the list into an STL
 stack.
@@ -610,7 +449,7 @@ now some DCHECKS to be sure no one Release()s a Lock more than they
 Acquire()ed it, and there is ifdef'ed functionality that can detect
 nested locks (legal under windows, but not under Posix).
 
-12) Why is it that the cv_events removed from list in Broadcast() and Signal()
+12) Why is it that the cv_events removed from list in SignalAll() and Signal()
 are not leaked?  How are they recovered??  The cv_events that appear to leak are
 taken from the waiting_list_.  For each element in that list, there is currently
 a thread in or around the WaitForSingleObject() call of Wait(), and those
@@ -640,6 +479,5 @@ code review and validate its correctness.
 
 */
 
-#endif
 }
 }

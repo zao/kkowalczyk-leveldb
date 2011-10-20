@@ -2,7 +2,6 @@
 * write web page
 * add snappy
 * test app exercising dll APIs in the .zip file
-* cleanup CondVar based on Chrome code
 <-- make a release
 * show proc in db_bench for windows
 <-- make a release
