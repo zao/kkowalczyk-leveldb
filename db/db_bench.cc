@@ -293,7 +293,7 @@ struct ThreadState {
   }
 };
 
-}
+}  // namespace
 
 class Benchmark {
  private:
@@ -834,7 +834,7 @@ class Benchmark {
   }
 };
 
-}
+}  // namespace leveldb
 
 int main(int argc, char** argv) {
   FLAGS_write_buffer_size = leveldb::Options().write_buffer_size;
