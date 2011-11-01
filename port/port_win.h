@@ -34,15 +34,13 @@
 #define snprintf _snprintf
 
 #include <windows.h>
+// Undo various #define in windows headers that interfere with the code
 #ifdef min
 #undef min
 #endif
 #ifdef small
 #undef small
 #endif
-// Undo #define DeleteFile as DeleteFileA or DeleteFileW 
-// done in Windows headers, which conflicts with
-// Env::DeleteFile() method.
 #ifdef DeleteFile
 #undef DeleteFile
 #endif
